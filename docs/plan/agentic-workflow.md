@@ -1,6 +1,6 @@
 # Quy trình agentic – RideFlow
 
-Áp dụng skill `ecc:agentic-engineering` cho dự án: **agent (Claude Code) viết phần lớn code, người kiểm soát chất lượng và rủi ro.** Đọc cùng `team-split.md` (ai làm gì) và `.claude/rules/` (luật bắt buộc).
+Áp dụng skill `ecc:agentic-engineering` cho dự án: **agent (Claude Code) viết phần lớn code, người kiểm soát chất lượng và rủi ro.** Đọc cùng `team-split.md` (ai làm gì) và `CONTRIBUTING.md` (luật bắt buộc).
 
 ## 1. Eval trước, code sau
 
@@ -81,7 +81,7 @@ Chỉ **nâng model** khi model thấp hơn thất bại vì **thiếu suy luậ
 - **Cùng 1 session** cho các unit dính chặt nhau (A1.1 → A1.5).
 - **Session mới** khi chuyển phase hoặc chuyển service (tránh agent mang giả định của service này sang service khác).
 - `/compact` **sau** khi xong 1 milestone (eval chuyển bước), **không** compact giữa lúc đang debug.
-- Mở đầu mỗi session: "Đọc `CLAUDE.md`, `.claude/rules/`, task `<mã>` trong `docs/plan/team-split.md`, chạy `bash tests/e2e/flow-a.sh` và cho biết failure signature."
+- Mở đầu mỗi session: "Đọc `CONTRIBUTING.md`, task `<mã>` trong `docs/plan/team-split.md`, chạy `bash tests/e2e/flow-a.sh` và cho biết failure signature."
 
 ## 6. Review code do agent viết – soi gì
 

@@ -117,5 +117,5 @@ Bên kia chưa xong thì dùng **stub** (Mockito, hoặc bắn event tay qua Rab
 
 - Mỗi task 1 branch `feat/<mã>-<mô-tả>` (vd `feat/B3-atomic-reserve`); PR cần **1 người khác review**, xoay vòng A→B→C→A để ai cũng hiểu phần người khác (giảng viên hỏi chéo).
 - Chỉ merge khi `./mvnw verify` xanh và `tests/e2e/regression.sh` 9/9. Đổi API/event → sửa contract cùng PR. Đổi schema → migration mới.
-- Tuân thủ `CLAUDE.md` và `.claude/rules/`. Với Claude Code: `/ecc:plan` trước task ≥ 3 điểm, `ecc:tdd-workflow` khi code, `/ecc:code-review` trước PR. Chia unit, chọn model, review theo [`agentic-workflow.md`](agentic-workflow.md).
+- Tuân thủ [`CONTRIBUTING.md`](../../CONTRIBUTING.md) (quy tắc chung, checklist PR). Nếu dùng Claude Code: `/ecc:plan` trước task ≥ 3 điểm, `ecc:tdd-workflow` khi code, `/ecc:code-review` trước PR. Chia unit, chọn model, review theo [`agentic-workflow.md`](agentic-workflow.md).
 - Đề cho phép dùng AI nhưng **nhóm phải hiểu và chịu trách nhiệm** – mỗi người phải giải thích được từng dòng trong PR của mình khi vấn đáp.

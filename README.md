@@ -5,7 +5,7 @@
 - Kế hoạch, đối chiếu đề bài: [`docs/plan/implementation-plan.md`](docs/plan/implementation-plan.md) (§11)
 - Phân công, ma trận test, lịch đến 22/11: [`docs/plan/team-split.md`](docs/plan/team-split.md)
 - Quy trình làm việc với AI agent: [`docs/plan/agentic-workflow.md`](docs/plan/agentic-workflow.md)
-- Rules bắt buộc: [`CLAUDE.md`](CLAUDE.md) + [`.claude/rules/`](.claude/rules)
+- **Quy tắc làm việc chung (mọi thành viên phải đọc): [`CONTRIBUTING.md`](CONTRIBUTING.md)**
 - Hợp đồng: [`contracts/asyncapi/asyncapi.yaml`](contracts/asyncapi/asyncapi.yaml), [`contracts/openapi/public-api.yaml`](contracts/openapi/public-api.yaml)
 
 ## Kiến trúc
