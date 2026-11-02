@@ -9,7 +9,7 @@ Căn cứ: đề bài `COURSE-PROJECT-SPECIFICATION.pdf` (topic DS03) và `imple
 ## Nguyên tắc chia
 
 - **Chia theo luồng nghiệp vụ, không theo tầng.** Mỗi người sở hữu trọn vẹn service của mình (domain → API → event → test), **2 demo flow** để tự trình bày, và **các chương report** tương ứng (đề yêu cầu mỗi người giải thích được phần mình và cả kiến trúc chung).
-- **Cân độ khó bằng điểm**: 1 = dễ (≤ nửa ngày), 2 = trung bình, 3 = khó, 5 = rất khó. Mỗi người **15 điểm**, đúng **1 phần 5 điểm**.
+- **Cân độ khó bằng điểm**: 1 = dễ (≤ nửa ngày), 2 = trung bình, 3 = khó, 5 = rất khó. Mỗi người **19 điểm** = 15 điểm phần lõi (đúng **1 phần 5 điểm**) + 4 điểm tính năng nâng cao mục 7.5 (đề yêu cầu làm đủ).
 - Chỗ 2 người cùng đụng 1 service thì chia theo **package**, giao tiếp qua **port interface**.
 - Bằng chứng đóng góp = **commit của chính mình trên GitHub** (đề bắt buộc). Không commit hộ, không squash mất tên tác giả.
 
@@ -24,13 +24,14 @@ Căn cứ: đề bài `COURSE-PROJECT-SPECIFICATION.pdf` (topic DS03) và `imple
 | Chương report riêng (§10.2 đề) | 4, 9, 12 | 7, 8, 10 | 11, 14, 15 |
 | Chương chung | 1–3 | 5, 6 | 16–19 |
 | Việc nộp bài | Kịch bản demo tổng, điều phối diễn tập | **Tổng hợp `report.pdf`** | **Làm `slides.pdf`** |
-| Tổng điểm | 15 | 15 | 15 |
+| Nâng cao 7.5 (4đ) | Service discovery (Consul) + dynamic pricing | Circuit breaker + chạy nhiều instance | Distributed tracing (Jaeger) + log tập trung (Loki/Grafana) |
+| Tổng điểm | 19 | 19 | 19 |
 
 Chương 13 (Implementation): mỗi người viết phần service của mình. Mỗi người: 3 chương riêng + phần chương 13 + 1 nhóm chương chung + 1 việc nộp bài.
 
 ---
 
-## A – Nguyễn Minh Đăng: Trip & Identity (15đ)
+## A – Nguyễn Minh Đăng: Trip & Identity (19đ)
 
 | # | Việc | Điểm | Xong khi |
 |---|---|---|---|
@@ -41,8 +42,10 @@ Chương 13 (Implementation): mỗi người viết phần service của mình. 
 | A5 | Gateway kiểm JWT cho `/api/**` (trừ `/api/auth/**`, `/api/monitor/**`), chuyển `X-User-Id`/`X-User-Role`; service kiểm lại role ở endpoint ghi | 2 | Test bảo mật SEC1 xanh |
 | A6 | Chaos Flow E phía trip: `PUT /api/chaos/trip/fail-assign` (`@Profile("demo")`) | 1 | Bật cờ → saga của B kết thúc COMPENSATED |
 | A7 | Passenger panel: login + gắn token trong `api.js`; kịch bản demo Flow A trong README | 1 | Chạy hết Flow A chỉ bằng UI |
+| A8 | **7.5 Service discovery**: thêm Consul vào compose; `spring-cloud-starter-consul-discovery` trong `rideflow-common` và gateway; route gateway dùng `lb://<service>` thay URL cố định; `/api/monitor/health` lấy danh sách từ `DiscoveryClient` | 2 | Consul UI (:8500) thấy đủ service; tắt 1 service → Consul báo critical; gateway vẫn route khi service đổi IP |
+| A9 | **7.5 Dynamic pricing**: hệ số giá = số chuyến đang chờ ghép / số tài xế rảnh trong bán kính 3 km, kẹp 1.0–2.0; supply lấy từ `GET /internal/matching/supply?lat&lng` (C cung cấp); lưu `surge_multiplier` vào trip (migration mới); hiện trên Passenger panel | 2 | Test: 1 tài xế + 3 khách chờ → hệ số > 1; nhiều tài xế → 1.0 |
 
-## B – Phạm Hải Long: Driver & Matching Saga (15đ)
+## B – Phạm Hải Long: Driver & Matching Saga (19đ)
 
 | # | Việc | Điểm | Xong khi |
 |---|---|---|---|
@@ -53,8 +56,10 @@ Chương 13 (Implementation): mỗi người viết phần service của mình. 
 | B5 | Sweeper `@Scheduled` giải phóng reservation quá `reserved_until` (lease – đề 4.4) | 1 | Tài xế kẹt RESERVED tự về AVAILABLE |
 | B6 | Reject flow: consume `trip.driver-rejected` → release + thử tài xế khác | 1 | Test F9 xanh |
 | B7 | Driver panel hoàn chỉnh; viết `tests/e2e/flow-e.sh` **trước** khi làm B2 | 1 | Tài xế thao tác hết vòng đời bằng UI |
+| B8 | **7.5 Circuit breaker**: Resilience4j (`spring-cloud-starter-circuitbreaker-resilience4j`) bọc client matching → driver/trip; mạch mở → saga fail nhanh → compensation/FAILED thay vì chờ; lộ trạng thái qua `/actuator/circuitbreakers` | 2 | Test FT5: kill driver-service → mạch OPEN sau vài lần lỗi, saga FAILED trong < 2s; bật lại → HALF_OPEN → CLOSED |
+| B9 | **7.5 Multi-instance scaling**: bỏ port host cố định của service (gateway LB qua A8); `scripts/scale.sh` chạy `--scale matching-service=2 --scale trip-service=2`; chứng minh saga/reserve/outbox đúng khi 2 instance cùng chạy (SKIP LOCKED, unique `trip_id`, competing consumers) | 2 | Flow A + Flow B vẫn xanh với 2 instance; thí nghiệm P2 (1 vs 2 instance) |
 
-## C – Lê Nguyên Nhật Minh: Reliability & Evaluation (15đ)
+## C – Lê Nguyên Nhật Minh: Reliability & Evaluation (19đ)
 
 | # | Việc | Điểm | Xong khi |
 |---|---|---|---|
@@ -64,6 +69,8 @@ Chương 13 (Implementation): mỗi người viết phần service của mình. 
 | C4 | **Redis GEO projection** trong matching (`adapter/in/messaging/projection`, `adapter/out/redis`): `GEOADD`/`ZREM` theo event driver; cài `DriverLocator` bằng `GEOSEARCH` | 3 | Tài xế gần nhất được chọn (test F5) |
 | C5 | Eval phân tán: `flow-b.sh` (2 khách song song 1 tài xế), `flow-c.sh` (retry/DLQ); chạy & ghi kết quả `flow-restart.sh`, Flow D | 3 | Script chạy lại được, kết quả vào `docs/` |
 | C6 | CI GitHub Actions: `./mvnw verify` + `npm run build` | 1 | PR đỏ khi test/ArchUnit fail |
+| C8 | **7.5 Distributed tracing**: Micrometer Tracing + OpenTelemetry (`micrometer-tracing-bridge-otel`, `opentelemetry-exporter-otlp`) trong `rideflow-common` + gateway; Jaeger trong compose; bật observation cho `RabbitTemplate` và listener để trace đi xuyên REST **và** queue; log có `traceId` | 2 | Jaeger UI (:16686) hiện 1 trace đặt xe đi qua gateway → trip → RabbitMQ → matching → driver |
+| C9 | **7.5 Log tập trung**: Loki + Promtail (đọc log container Docker) + Grafana, gom vào compose profile `observability`; dashboard Grafana lọc log theo service / correlationId / traceId, link sang Jaeger. Cài `GET /internal/matching/supply` (đếm tài xế rảnh từ Redis) cho A9 | 2 | Grafana (:3000) tìm 1 correlationId thấy log của mọi service liên quan |
 | C7 | **Thí nghiệm hiệu năng** `scripts/load.sh`: N yêu cầu đặt xe đồng thời, đo latency p50/p95, throughput, thời gian ghép, recovery time; bảng/biểu đồ cho chương 15 | 1 | Số liệu + cấu hình máy ghi trong report |
 
 ---
@@ -90,6 +97,8 @@ Chương 13 (Implementation): mỗi người viết phần service của mình. 
 | SEC1 | Bảo mật | Không token → 401; passenger gọi hành động tài xế → 403 | A | gateway/trip test |
 | SEC2 | Dữ liệu sai | Toạ độ sai/thiếu → 400; body > 64KB → 413 | A | trip test + `regression.sh` R9 ✅ |
 | P1 | Hiệu năng | Tải đồng thời + recovery time | C | `scripts/load.sh` |
+| P2 | Hiệu năng | Throughput 1 instance vs 2 instance (7.5 scaling) | B | `scripts/load.sh` + `scripts/scale.sh` |
+| FT5 | Lỗi/khôi phục | driver-service chết → circuit breaker mở → saga FAILED nhanh → bật lại tự đóng mạch | B | matching test + Monitor |
 
 ## Phụ thuộc giữa các người – chốt trong 2 ngày đầu
 
@@ -101,6 +110,8 @@ Chương 13 (Implementation): mỗi người viết phần service của mình. 
 | Port `DriverLocator.nearestAvailable(lat, lng, limit, excluded)` | B định nghĩa → C cài | `matching-service/.../application/port/out/` |
 | Payload `driver.*` | B → C | asyncapi |
 | Payload `payment.*` | C → A | asyncapi |
+| `GET /internal/matching/supply?lat&lng` (số tài xế rảnh) | C → A (dynamic pricing) | `internal-api.yaml` |
+| Consul + `lb://` (A8) | A → B (B9 cần để chạy nhiều instance) | `deploy/docker-compose.yml` |
 
 Bên kia chưa xong thì dùng **stub** (Mockito, hoặc bắn event tay qua RabbitMQ UI / nút "Gửi event test").
 
@@ -108,12 +119,12 @@ Bên kia chưa xong thì dùng **stub** (Mockito, hoặc bắn event tay qua Rab
 
 | Ngày | A – Nguyễn Minh Đăng | B – Phạm Hải Long | C – Lê Nguyên Nhật Minh | Mốc chung |
 |---|---|---|---|---|
-| 02–04/11 | Chốt contract; A4 | Chốt contract; B4 | Chốt contract; C6, bắt đầu C4 | Đăng ký nhóm với giảng viên; tạo repo GitHub, mời giảng viên |
+| 02–04/11 | Chốt contract; A4, A8 | Chốt contract; B4 | Chốt contract; C6, C8, bắt đầu C4 | Đăng ký nhóm với giảng viên; tạo repo GitHub, mời giảng viên |
 | 05–08/11 | A1, A2, A5 | B3, B1 | C4, C1 | |
-| 09–11/11 | A3, A7 | B1 xong, B7 | C2 | **11/11: `flow-a.sh` xanh** |
-| 12–15/11 | A6 | B2, B5, B6 | C3, C5 | **15/11: flow B, C, E, restart xanh** |
+| 09–11/11 | A3, A7 | B1 xong, B7 | C2, C9 | **11/11: `flow-a.sh` xanh** |
+| 12–15/11 | A6, A9 | B2, B5, B6, B8 | C3, C5 | **15/11: flow B, C, E, restart xanh** |
 | 16/11 | — | — | — | Thi giữa kỳ |
-| 17–19/11 | Test SEC1/SEC2/CC2; viết chương 1–3, 4, 9, 12 + phần ch.13 | Test CC1/F9; viết chương 5, 6, 7, 8, 10 + phần ch.13 | C7 đo hiệu năng; viết chương 11, 14, 15, 16–19 + phần ch.13 | Đóng băng tính năng 17/11 |
+| 17–19/11 | Test SEC1/SEC2/CC2; viết chương 1–3, 4, 9, 12 + phần ch.13 | B9 (17–18/11); test CC1/F9/FT5/P2; viết chương 5, 6, 7, 8, 10 + phần ch.13 | C7 đo hiệu năng; viết chương 11, 14, 15, 16–19 + phần ch.13 | Đóng băng tính năng 18/11 |
 | 20–21/11 | Kịch bản demo tổng; điều phối diễn tập | Tổng hợp `docs/report.pdf`; diễn tập | Làm `docs/slides.pdf`; chạy lại README từ đầu trên máy sạch; diễn tập | **21/11: tag `v1.0.0`** |
 | 22/11 | | | | **Hạn nộp** |
 

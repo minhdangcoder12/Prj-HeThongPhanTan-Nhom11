@@ -186,7 +186,7 @@ com.rideflow.<svc>.infrastructure // config, security
 | 7.3 | REST, message queue, event ID/idempotency key, retry, dedup, DLQ, correlation ID, Saga | REST internal, RabbitMQ, `EventEnvelope`, inbox, DLQ, `X-Correlation-Id` ✅; Saga 🔲 B1/B2 | ✅ / 🔲 |
 | 7.4 | Start service độc lập | `bash scripts/compose.sh up -d <svc>` | ✅ |
 | 7.4 | Tắt 1 service giữa luồng → retry/queue/compensation → bật lại xử lý tiếp | `scripts/fault.sh kill/start` + `tests/e2e/flow-restart.sh` (baseline FAIL ở S1) | ✅ script / 🔲 C1 |
-| 7.5 | Nâng cao | API Gateway ✅, Outbox ✅, Docker Compose ✅, dashboard Monitor ✅, geospatial 🔲 C4 | |
+| 7.5 | Nâng cao – **làm đủ cả 10 mục** | API Gateway ✅, Outbox ✅, Docker Compose ✅, dashboard Monitor ✅; geospatial 🔲 C4; service discovery 🔲 A8; dynamic pricing 🔲 A9; circuit breaker 🔲 B8; multi-instance 🔲 B9; distributed tracing 🔲 C8; log tập trung 🔲 C9 | 🔲 |
 | 9 | Test 8 / 2 / 2 / 2 / 1 | Ma trận trong `team-split.md` | 🔲 |
 | 10.1 | `README src/ deploy/ tests/ scripts/ docs/ .env.example`, bảng phân công, commit từng người, tag `v1.0.0`, mời giảng viên | Layout ✅; bảng phân công trong README ✅; git/tag 🔲 | |
 | 10.2 | `docs/report.pdf` 20–30 trang, `slides.pdf` | Phân chương theo người trong `team-split.md` | 🔲 |
