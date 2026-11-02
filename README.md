@@ -159,7 +159,6 @@ Chi tiết từng task, điểm độ khó và ma trận test: [`docs/plan/team-
 | Gateway: SSE monitor, health tổng, replay event, giới hạn body 64KB | Redis GEO projection |
 | Eval: `regression.sh` 9/9; `flow-a.sh`, `flow-restart.sh` (đang đỏ – đúng kỳ vọng) | `flow-b/c/e.sh`, `scripts/load.sh` |
 
-## Nguồn tham khảo & sử dụng AI
+## Nguồn tham khảo
 
 - Thư viện: Spring Boot 3.3, Spring Cloud Gateway, Spring AMQP, Flyway, ArchUnit, React, Vite.
-- Khung codebase và tài liệu được dựng với hỗ trợ của Claude Code (Anthropic). Nhóm đã đọc, chạy, kiểm chứng và chịu trách nhiệm với toàn bộ mã nguồn (đề mục 13).
