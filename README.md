@@ -94,14 +94,64 @@ Mũi tên `->>` là REST, mũi tên `-)` là event qua RabbitMQ.
 
 ## Cấu trúc repo
 
-| Thư mục | Nội dung |
-|---|---|
-| `src/` | `libs/rideflow-common` (technical dùng chung), `services/<7 service>`, `demo-client` (React + Vite) |
-| `deploy/` | `docker-compose.yml`, `Dockerfile` dùng chung, init Postgres |
-| `tests/e2e/` | Kịch bản test end-to-end chạy trên stack thật (unit/integration test nằm trong từng service) |
-| `scripts/` | `start.sh`, `compose.sh`, `fault.sh` (gây lỗi), `load.sh` (sinh tải – task C7) |
-| `docs/` | Plan, phân công, `report.pdf`, `slides.pdf` |
-| `contracts/` | OpenAPI + AsyncAPI |
+```text
+Prj-HeThongPhanTan-Nhom11/
+├── README.md                    # mô tả, kiến trúc, cài đặt, chạy, demo, phân công
+├── CONTRIBUTING.md              # quy tắc làm việc chung của nhóm (R0–R9, Git, checklist PR)
+├── .env.example                 # mẫu cấu hình, KHÔNG chứa bí mật → copy thành .env
+├── pom.xml                      # Maven gốc, gom 8 module Java
+├── mvnw, mvnw.cmd, .mvn/        # Maven Wrapper – build không cần cài Maven
+│
+├── src/                         # ── MÃ NGUỒN ──
+│   ├── libs/
+│   │   └── rideflow-common/     # phần kỹ thuật dùng chung: EventEnvelope, Outbox/Inbox,
+│   │                            #   correlation ID, retry → DLQ, luật ArchUnit
+│   ├── services/
+│   │   ├── api-gateway/         # :8080 cửa vào /api/**, event tap → SSE cho Monitor
+│   │   ├── user-service/        # :8081 đăng ký, đăng nhập, JWT
+│   │   ├── driver-service/      # :8082 trạng thái, vị trí, giữ chỗ tài xế
+│   │   ├── trip-service/        # :8083 vòng đời chuyến, tính cước
+│   │   ├── matching-service/    # :8084 ghép tài xế (Saga), Redis GEO
+│   │   ├── payment-service/     # :8085 giả lập thanh toán
+│   │   └── notification-service/# :8086 thông báo, retry → DLQ
+│   └── demo-client/             # React + Vite :5173 – Passenger, Driver, Monitor, Kịch bản demo
+│
+├── deploy/                      # ── TRIỂN KHAI ──
+│   ├── docker-compose.yml       # 10 container: 7 service + Postgres + RabbitMQ + Redis
+│   ├── Dockerfile               # 1 Dockerfile dùng chung cho mọi service Java
+│   └── postgres/                # script tạo 6 database
+│
+├── tests/
+│   └── e2e/                     # kịch bản test chạy trên stack thật: regression, flow-a, flow-restart
+├── scripts/                     # start.sh (chạy), compose.sh, fault.sh (gây lỗi), load.sh (sinh tải – C7)
+├── contracts/                   # hợp đồng API: openapi/ (REST), asyncapi/ (event)
+└── docs/
+    ├── plan/                    # kế hoạch, phân công, quy trình
+    ├── report.pdf               # (nộp cuối kỳ)
+    └── slides.pdf               # (nộp cuối kỳ)
+```
+
+Bên trong **mỗi service** dùng cùng một layout (kiến trúc hexagonal, ArchUnit kiểm tra khi build). Ví dụ `trip-service`:
+
+```text
+src/services/trip-service/
+├── pom.xml
+└── src/
+    ├── main/java/com/rideflow/trip/
+    │   ├── TripServiceApplication.java
+    │   ├── domain/model/            # Trip, TripStatus – Java thuần, không framework
+    │   ├── application/             # use case (TripQueries…)
+    │   │   └── port/out/            # interface cần từ bên ngoài (TripRepository)
+    │   ├── adapter/
+    │   │   ├── in/web/              # REST controller
+    │   │   ├── in/messaging/        # nhận event RabbitMQ
+    │   │   └── out/persistence/     # JPA entity + repository
+    │   └── infrastructure/          # cấu hình Spring (queue, bean)
+    ├── main/resources/
+    │   ├── application.yml
+    │   └── db/migration/            # Flyway: V1__messaging_tables.sql, V2__trips.sql
+    └── test/java/…                  # unit test + ArchitectureTest
+```
 
 ## Cài đặt & chạy (cũng là hướng dẫn redeploy)
 
