@@ -21,10 +21,12 @@ Căn cứ: đề bài `COURSE-PROJECT-SPECIFICATION.pdf` (topic DS03) và `imple
 | Phần 5 điểm | Vòng đời chuyến + tính cước + outbox + assign idempotent | Saga orchestration | Payment + notification với inbox, retry/DLQ |
 | Demo flow trình bày | **A** happy path · **E** (phía trip) | **B** 2 khách tranh 1 tài xế · **E** (compensation) | **C** tắt service giữa luồng → bật lại · **D** event trùng |
 | Panel frontend | Passenger | Driver | Monitor + Kịch bản demo |
-| Chương report (§10.2 đề) | 4, 9, 12, 13 | 7, 8, 10 | 11, 14, 15 |
+| Chương report riêng (§10.2 đề) | 4, 9, 12 | 7, 8, 10 | 11, 14, 15 |
+| Chương chung | 1–3 | 5, 6 | 16–19 |
+| Việc nộp bài | Kịch bản demo tổng, điều phối diễn tập | **Tổng hợp `report.pdf`** | **Làm `slides.pdf`** |
 | Tổng điểm | 15 | 15 | 15 |
 
-Chương chung (1–3, 5, 6, 16–19) và `slides.pdf`: cả nhóm, A tổng hợp.
+Chương 13 (Implementation): mỗi người viết phần service của mình. Mỗi người: 3 chương riêng + phần chương 13 + 1 nhóm chương chung + 1 việc nộp bài.
 
 ---
 
@@ -111,8 +113,8 @@ Bên kia chưa xong thì dùng **stub** (Mockito, hoặc bắn event tay qua Rab
 | 09–11/11 | A3, A7 | B1 xong, B7 | C2 | **11/11: `flow-a.sh` xanh** |
 | 12–15/11 | A6 | B2, B5, B6 | C3, C5 | **15/11: flow B, C, E, restart xanh** |
 | 16/11 | — | — | — | Thi giữa kỳ |
-| 17–19/11 | Test SEC1/SEC2/CC2; viết chương 4, 9, 12, 13 | Test CC1/F9; viết chương 7, 8, 10 | C7 đo hiệu năng; viết chương 11, 14, 15 | Đóng băng tính năng 17/11 |
-| 20–21/11 | Tổng hợp `docs/report.pdf`, `slides.pdf` | Diễn tập demo | Diễn tập demo; chạy lại README từ đầu trên máy sạch | **21/11: tag `v1.0.0`** |
+| 17–19/11 | Test SEC1/SEC2/CC2; viết chương 1–3, 4, 9, 12 + phần ch.13 | Test CC1/F9; viết chương 5, 6, 7, 8, 10 + phần ch.13 | C7 đo hiệu năng; viết chương 11, 14, 15, 16–19 + phần ch.13 | Đóng băng tính năng 17/11 |
+| 20–21/11 | Kịch bản demo tổng; điều phối diễn tập | Tổng hợp `docs/report.pdf`; diễn tập | Làm `docs/slides.pdf`; chạy lại README từ đầu trên máy sạch; diễn tập | **21/11: tag `v1.0.0`** |
 | 22/11 | | | | **Hạn nộp** |
 
 ## Quy trình làm việc
