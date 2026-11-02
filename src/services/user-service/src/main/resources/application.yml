@@ -1,0 +1,9 @@
+server:
+  port: ${PORT:8081}
+spring:
+  application:
+    name: user-service
+  config:
+    import: classpath:rideflow-common.yml
+rideflow:
+  db: rideflow_user

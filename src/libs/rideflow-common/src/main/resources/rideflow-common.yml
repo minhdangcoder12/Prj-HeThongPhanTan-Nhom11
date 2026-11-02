@@ -1,0 +1,40 @@
+# Shared service config. Each service: spring.config.import: classpath:rideflow-common.yml + sets rideflow.db.
+spring:
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${rideflow.db}
+    username: ${POSTGRES_USER:rideflow_admin}
+    password: ${POSTGRES_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        # Bounded retry 2s -> 5s -> 10s, then reject without requeue: message goes to <queue>.dlq.
+        # shortcut: in-listener retry blocks the consumer thread during backoff; move to TTL retry queues if throughput matters.
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-attempts: 4
+          initial-interval: 2s
+          multiplier: 2.5
+          max-interval: 10s
+  mvc:
+    problemdetails:
+      enabled: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:-},%X{correlationId:-}]"

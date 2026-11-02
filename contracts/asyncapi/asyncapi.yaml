@@ -1,0 +1,114 @@
+asyncapi: 3.0.0
+info:
+  title: RideFlow events
+  version: 0.1.0
+  description: |
+    All events go to topic exchange `rideflow.events`, routing key = eventType.
+    Failed consumers dead-letter to `rideflow.dlx` -> `<queue>.dlq` after retries 2s/5s/10s.
+    Event names are contracts: add/rename here in the same PR as the code (rule R3).
+    x-phase = roadmap phase in docs/plan/implementation-plan.md that implements the producer.
+
+defaultContentType: application/json
+
+channels:
+  trip.created:                { address: trip.created,                x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
+  trip.driver-assigned:        { address: trip.driver-assigned,        x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
+  trip.accepted:               { address: trip.accepted,               x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
+  trip.started:                { address: trip.started,                x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
+  trip.completed:              { address: trip.completed,              x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
+  trip.no-driver:              { address: trip.no-driver,              x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
+  trip.driver-rejected:        { address: trip.driver-rejected,        x-producer: trip-service,         x-phase: 4, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
+  driver.availability-changed: { address: driver.availability-changed, x-producer: driver-service,       x-phase: 1, messages: { m: { $ref: "#/components/messages/DriverEvent" } } }
+  driver.location-updated:     { address: driver.location-updated,     x-producer: driver-service,       x-phase: 1, messages: { m: { $ref: "#/components/messages/DriverEvent" } } }
+  driver.reserved:             { address: driver.reserved,             x-producer: driver-service,       x-phase: 1, messages: { m: { $ref: "#/components/messages/DriverEvent" } } }
+  driver.released:             { address: driver.released,             x-producer: driver-service,       x-phase: 4, messages: { m: { $ref: "#/components/messages/DriverEvent" } } }
+  matching.saga-changed:       { address: matching.saga-changed,       x-producer: matching-service,     x-phase: 1, messages: { m: { $ref: "#/components/messages/SagaEvent" } } }
+  payment.succeeded:           { address: payment.succeeded,           x-producer: payment-service,      x-phase: 2, messages: { m: { $ref: "#/components/messages/PaymentEvent" } } }
+  payment.failed:              { address: payment.failed,              x-producer: payment-service,      x-phase: 2, messages: { m: { $ref: "#/components/messages/PaymentEvent" } } }
+  notification.sent:           { address: notification.sent,           x-producer: notification-service, x-phase: 2, messages: { m: { $ref: "#/components/messages/NotificationEvent" } } }
+  notification.failed:         { address: notification.failed,         x-producer: notification-service, x-phase: 5, messages: { m: { $ref: "#/components/messages/NotificationEvent" } } }
+
+components:
+  messages:
+    TripEvent:         { payload: { $ref: "#/components/schemas/TripEnvelope" } }
+    DriverEvent:       { payload: { $ref: "#/components/schemas/DriverEnvelope" } }
+    SagaEvent:         { payload: { $ref: "#/components/schemas/SagaEnvelope" } }
+    PaymentEvent:      { payload: { $ref: "#/components/schemas/PaymentEnvelope" } }
+    NotificationEvent: { payload: { $ref: "#/components/schemas/NotificationEnvelope" } }
+
+  schemas:
+    Envelope:
+      type: object
+      required: [eventId, eventType, eventVersion, correlationId, aggregateId, producer, occurredAt, payload]
+      properties:
+        eventId:       { type: string, format: uuid, description: Dedupe key for the Inbox }
+        eventType:     { type: string, example: trip.created }
+        eventVersion:  { type: integer, example: 1 }
+        correlationId: { type: string, format: uuid, description: Same for the whole business flow }
+        causationId:   { type: [string, "null"], format: uuid, description: eventId that caused this one }
+        aggregateId:   { type: string, description: tripId / driverId / sagaId / paymentId }
+        producer:      { type: string, example: trip-service }
+        occurredAt:    { type: string, format: date-time }
+    TripEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - properties:
+            payload:
+              type: object
+              properties:
+                tripId:      { type: string, format: uuid }
+                passengerId: { type: string, format: uuid }
+                driverId:    { type: [string, "null"], format: uuid }
+                status:      { type: string }
+                pickup:      { $ref: "#/components/schemas/Point" }
+                dropoff:     { $ref: "#/components/schemas/Point" }
+                fare:        { type: [number, "null"] }
+    DriverEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - properties:
+            payload:
+              type: object
+              properties:
+                driverId: { type: string, format: uuid }
+                status:   { type: string, enum: [OFFLINE, AVAILABLE, RESERVED, ON_TRIP] }
+                tripId:   { type: [string, "null"], format: uuid }
+                location: { $ref: "#/components/schemas/Point" }
+    SagaEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - properties:
+            payload:
+              type: object
+              properties:
+                sagaId:   { type: string, format: uuid }
+                tripId:   { type: string, format: uuid }
+                driverId: { type: [string, "null"], format: uuid }
+                status:   { type: string, enum: [STARTED, CANDIDATE_SELECTED, DRIVER_RESERVED, TRIP_ASSIGNED, COMPLETED, COMPENSATING, COMPENSATED, FAILED] }
+                reason:   { type: [string, "null"] }
+    PaymentEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - properties:
+            payload:
+              type: object
+              properties:
+                paymentId: { type: string, format: uuid }
+                tripId:    { type: string, format: uuid }
+                amount:    { type: number }
+                status:    { type: string, enum: [PENDING, SUCCEEDED, FAILED] }
+    NotificationEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - properties:
+            payload:
+              type: object
+              properties:
+                notificationId: { type: string, format: uuid }
+                tripId:         { type: string, format: uuid }
+                attempts:       { type: integer }
+    Point:
+      type: object
+      properties:
+        lat: { type: number, example: 10.7769 }
+        lng: { type: number, example: 106.7009 }

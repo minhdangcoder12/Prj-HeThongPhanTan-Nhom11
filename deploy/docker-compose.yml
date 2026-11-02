@@ -1,0 +1,114 @@
+# Usage (repo root): cp .env.example .env && bash scripts/start.sh
+# Same as: docker compose --env-file .env -f deploy/docker-compose.yml up -d --build
+name: rideflow
+x-service: &service
+  env_file: ../.env
+  restart: unless-stopped
+  depends_on:
+    postgres: { condition: service_healthy }
+    rabbitmq: { condition: service_healthy }
+  networks: [rideflow]
+
+x-infra-env: &infra-env
+  POSTGRES_HOST: postgres
+  RABBITMQ_HOST: rabbitmq
+  REDIS_HOST: redis
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: rideflow_user
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d rideflow_user"]
+      interval: 5s
+      retries: 10
+    networks: [rideflow]
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports: ["5672:5672", "15672:15672"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 10s
+      retries: 10
+    networks: [rideflow]
+
+  redis:
+    image: redis:7.2-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+    networks: [rideflow]
+
+  api-gateway:
+    <<: *service
+    build: { context: .., dockerfile: deploy/Dockerfile, args: { SERVICE: api-gateway } }
+    ports: ["8080:8080"]
+    environment:
+      <<: *infra-env
+      RIDEFLOW_SERVICES_USER: http://user-service:8081
+      RIDEFLOW_SERVICES_DRIVER: http://driver-service:8082
+      RIDEFLOW_SERVICES_TRIP: http://trip-service:8083
+      RIDEFLOW_SERVICES_MATCHING: http://matching-service:8084
+      RIDEFLOW_SERVICES_PAYMENT: http://payment-service:8085
+      RIDEFLOW_SERVICES_NOTIFICATION: http://notification-service:8086
+
+  user-service:
+    <<: *service
+    build: { context: .., dockerfile: deploy/Dockerfile, args: { SERVICE: user-service } }
+    ports: ["8081:8081"]
+    environment: *infra-env
+
+  driver-service:
+    <<: *service
+    build: { context: .., dockerfile: deploy/Dockerfile, args: { SERVICE: driver-service } }
+    ports: ["8082:8082"]
+    environment: *infra-env
+
+  trip-service:
+    <<: *service
+    build: { context: .., dockerfile: deploy/Dockerfile, args: { SERVICE: trip-service } }
+    ports: ["8083:8083"]
+    environment: *infra-env
+
+  matching-service:
+    <<: *service
+    build: { context: .., dockerfile: deploy/Dockerfile, args: { SERVICE: matching-service } }
+    ports: ["8084:8084"]
+    environment: *infra-env
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  payment-service:
+    <<: *service
+    build: { context: .., dockerfile: deploy/Dockerfile, args: { SERVICE: payment-service } }
+    ports: ["8085:8085"]
+    environment: *infra-env
+
+  notification-service:
+    <<: *service
+    build: { context: .., dockerfile: deploy/Dockerfile, args: { SERVICE: notification-service } }
+    ports: ["8086:8086"]
+    environment: *infra-env
+
+networks:
+  rideflow:
+    name: rideflow
+
+volumes:
+  pgdata:
+    name: rideflow_pgdata

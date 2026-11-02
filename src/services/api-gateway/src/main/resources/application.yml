@@ -1,0 +1,55 @@
+server:
+  port: ${PORT:8080}
+spring:
+  application:
+    name: api-gateway
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+  cloud:
+    gateway:
+      # Gateway and the downstream CorrelationIdFilter both set the header; keep one.
+      default-filters:
+        - DedupeResponseHeader=X-Correlation-Id, RETAIN_FIRST
+        # Spec 4.5 "limit message sizes": larger bodies get 413 at the edge.
+        - name: RequestSize
+          args:
+            maxSize: 64KB
+      # Only /api/** is exposed. /internal/** is never routed (rule R1).
+      routes:
+        - id: user
+          uri: ${rideflow.services.user}
+          predicates: [ "Path=/api/users/**,/api/auth/**" ]
+        - id: driver
+          uri: ${rideflow.services.driver}
+          predicates: [ "Path=/api/drivers/**" ]
+        - id: trip
+          uri: ${rideflow.services.trip}
+          predicates: [ "Path=/api/trips/**" ]
+        - id: matching
+          uri: ${rideflow.services.matching}
+          predicates: [ "Path=/api/matching/**" ]
+        - id: payment
+          uri: ${rideflow.services.payment}
+          predicates: [ "Path=/api/payments/**" ]
+        - id: notification
+          uri: ${rideflow.services.notification}
+          predicates: [ "Path=/api/notifications/**" ]
+rideflow:
+  services:
+    user: http://localhost:8081
+    driver: http://localhost:8082
+    trip: http://localhost:8083
+    matching: http://localhost:8084
+    payment: http://localhost:8085
+    notification: http://localhost:8086
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+logging:
+  pattern:
+    level: "%5p [api-gateway,%X{correlationId:-}]"

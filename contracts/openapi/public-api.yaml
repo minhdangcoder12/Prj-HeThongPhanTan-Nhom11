@@ -1,0 +1,134 @@
+openapi: 3.0.3
+info:
+  title: RideFlow public API (via api-gateway :8080)
+  version: 0.1.0
+  description: |
+    Only /api/** is public. Errors are RFC 7807 ProblemDetail. Every request may carry X-Correlation-Id.
+    x-phase = roadmap phase implementing the endpoint; 0 = already in the skeleton.
+    x-profile: demo = exists only with SPRING_PROFILES_ACTIVE=demo.
+servers:
+  - url: http://localhost:8080
+
+paths:
+  /api/auth/login:
+    post:
+      x-phase: 1
+      summary: Login, returns JWT
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { email: { type: string }, password: { type: string } } }
+      responses:
+        "200": { description: "{ token, userId, role }" }
+        "401": { $ref: "#/components/responses/Problem" }
+
+  /api/trips:
+    get:
+      x-phase: 0
+      summary: Recent trips (monitor)
+      responses: { "200": { description: Trip[] } }
+    post:
+      x-phase: 1
+      summary: Passenger requests a trip -> REQUESTED, emits trip.created
+      parameters: [ { $ref: "#/components/parameters/IdempotencyKey" } ]
+      requestBody:
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateTrip" } } }
+      responses:
+        "201": { description: Trip }
+        "400": { $ref: "#/components/responses/Problem" }
+  /api/trips/{id}:
+    get:
+      x-phase: 0
+      summary: Trip by id
+      parameters: [ { $ref: "#/components/parameters/Id" } ]
+      responses:
+        "200": { description: Trip }
+        "404": { $ref: "#/components/responses/Problem" }
+  /api/trips/{id}/accept:
+    post: { x-phase: 1, summary: "Driver accepts: DRIVER_ASSIGNED -> ACCEPTED", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "409": { $ref: "#/components/responses/Problem" } } }
+  /api/trips/{id}/reject:
+    post: { x-phase: 4, summary: "Driver rejects: back to MATCHING, emits trip.driver-rejected", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "409": { $ref: "#/components/responses/Problem" } } }
+  /api/trips/{id}/start:
+    post: { x-phase: 1, summary: "ACCEPTED -> IN_PROGRESS", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "409": { $ref: "#/components/responses/Problem" } } }
+  /api/trips/{id}/complete:
+    post: { x-phase: 1, summary: "IN_PROGRESS -> COMPLETED, emits trip.completed", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "409": { $ref: "#/components/responses/Problem" } } }
+
+  /api/drivers:
+    get: { x-phase: 0, summary: All drivers (monitor), responses: { "200": { description: Driver[] } } }
+  /api/drivers/{id}/availability:
+    put:
+      x-phase: 1
+      summary: Go AVAILABLE / OFFLINE, emits driver.availability-changed
+      parameters: [ { $ref: "#/components/parameters/Id" } ]
+      requestBody:
+        content: { application/json: { schema: { type: object, properties: { available: { type: boolean } } } } }
+      responses:
+        "200": { description: Driver }
+        "409": { $ref: "#/components/responses/Problem" }
+  /api/drivers/{id}/location:
+    put:
+      x-phase: 1
+      summary: Update simulated location, emits driver.location-updated
+      parameters: [ { $ref: "#/components/parameters/Id" } ]
+      requestBody:
+        content: { application/json: { schema: { $ref: "#/components/schemas/Point" } } }
+      responses: { "200": { description: Driver } }
+
+  /api/matching/sagas:
+    get: { x-phase: 0, summary: Recent sagas (monitor), responses: { "200": { description: MatchingSaga[] } } }
+  /api/payments:
+    get: { x-phase: 0, summary: Recent payments (monitor), responses: { "200": { description: Payment[] } } }
+  /api/notifications:
+    get: { x-phase: 0, summary: Recent notifications (monitor), responses: { "200": { description: Notification[] } } }
+  /api/users:
+    get: { x-phase: 0, summary: Users (monitor), responses: { "200": { description: User[] } } }
+
+  /api/monitor/events:
+    get: { x-phase: 0, summary: SSE stream of every message on rideflow.events and rideflow.dlx, responses: { "200": { description: text/event-stream } } }
+  /api/monitor/health:
+    get: { x-phase: 0, summary: UP or DOWN per service, responses: { "200": { description: "{ trip: UP, ... }" } } }
+  /api/monitor/test-event:
+    post: { x-phase: 0, x-profile: demo, summary: Publish a system.ping event, responses: { "200": { description: "{ eventId }" } } }
+  /api/monitor/replay/{id}:
+    post:
+      x-phase: 0
+      x-profile: demo
+      summary: Re-publish a captured event with the SAME eventId (Flow D)
+      parameters: [ { $ref: "#/components/parameters/Id" } ]
+      responses:
+        "200": { description: ok }
+        "404": { $ref: "#/components/responses/Problem" }
+  /api/chaos/trip/fail-assign:
+    put:
+      x-phase: 4
+      x-profile: demo
+      summary: Make internal assign-driver fail permanently (Flow E compensation)
+      requestBody:
+        content: { application/json: { schema: { type: object, properties: { enabled: { type: boolean } } } } }
+      responses: { "200": { description: ok } }
+  /api/chaos/notification/fail-rate:
+    put:
+      x-phase: 5
+      x-profile: demo
+      summary: Fraction 0..1 of notification deliveries that throw (Flow C retry and DLQ)
+      requestBody:
+        content: { application/json: { schema: { type: object, properties: { rate: { type: number } } } } }
+      responses: { "200": { description: ok } }
+
+components:
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: string } }
+    IdempotencyKey: { name: Idempotency-Key, in: header, required: false, schema: { type: string } }
+  responses:
+    Problem:
+      description: RFC 7807 ProblemDetail
+      content: { application/problem+json: { schema: { type: object } } }
+  schemas:
+    Point: { type: object, properties: { lat: { type: number }, lng: { type: number } } }
+    CreateTrip:
+      type: object
+      required: [passengerId, pickup, dropoff]
+      properties:
+        passengerId: { type: string, format: uuid }
+        pickup: { $ref: "#/components/schemas/Point" }
+        dropoff: { $ref: "#/components/schemas/Point" }

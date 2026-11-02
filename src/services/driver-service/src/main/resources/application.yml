@@ -1,0 +1,9 @@
+server:
+  port: ${PORT:8082}
+spring:
+  application:
+    name: driver-service
+  config:
+    import: classpath:rideflow-common.yml
+rideflow:
+  db: rideflow_driver

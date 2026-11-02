@@ -1,0 +1,9 @@
+server:
+  port: ${PORT:8086}
+spring:
+  application:
+    name: notification-service
+  config:
+    import: classpath:rideflow-common.yml
+rideflow:
+  db: rideflow_notification

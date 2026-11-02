@@ -1,0 +1,13 @@
+target/
+node_modules/
+dist/
+.env
+*.log
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Local tool config (per machine, not part of the project)
+.claude/settings.local.json
+.claude/launch.json
