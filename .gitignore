@@ -11,3 +11,4 @@ dist/
 # Local tool config (per machine, not part of the project)
 .claude/settings.local.json
 .claude/launch.json
+CLAUDE.md
