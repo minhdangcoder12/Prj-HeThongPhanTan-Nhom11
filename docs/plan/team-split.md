@@ -2,6 +2,8 @@
 
 Căn cứ: đề bài `COURSE-PROJECT-SPECIFICATION.pdf` (topic DS03) và `implementation-plan.md` §11 (bảng đối chiếu đề). Phase 0 (khung codebase) **đã xong**.
 
+**Thành viên:** A – Nguyễn Minh Đăng · B – Phạm Hải Long · C – Lê Nguyên Nhật Minh
+
 **Mốc cứng:** thi giữa kỳ 16/11 · **nộp code + report qua GitHub 22/11/2026** · demo + vấn đáp 23/11 hoặc 30/11.
 
 ## Nguyên tắc chia
@@ -13,7 +15,7 @@ Căn cứ: đề bài `COURSE-PROJECT-SPECIFICATION.pdf` (topic DS03) và `imple
 
 ## Tổng quan
 
-| | **A – Trip & Identity** | **B – Driver & Matching Saga** | **C – Reliability & Evaluation** |
+| | **A – Nguyễn Minh Đăng**<br>Trip & Identity | **B – Phạm Hải Long**<br>Driver & Matching Saga | **C – Lê Nguyên Nhật Minh**<br>Reliability & Evaluation |
 |---|---|---|---|
 | Service sở hữu | user-service, trip-service (gồm tính cước), JWT ở gateway | driver-service, matching-service (saga) | payment-service, notification-service, Redis projection, CI, đo hiệu năng |
 | Phần 5 điểm | Vòng đời chuyến + tính cước + outbox + assign idempotent | Saga orchestration | Payment + notification với inbox, retry/DLQ |
@@ -26,7 +28,7 @@ Chương chung (1–3, 5, 6, 16–19) và `slides.pdf`: cả nhóm, A tổng h�
 
 ---
 
-## Người A – Trip & Identity (15đ)
+## A – Nguyễn Minh Đăng: Trip & Identity (15đ)
 
 | # | Việc | Điểm | Xong khi |
 |---|---|---|---|
@@ -38,7 +40,7 @@ Chương chung (1–3, 5, 6, 16–19) và `slides.pdf`: cả nhóm, A tổng h�
 | A6 | Chaos Flow E phía trip: `PUT /api/chaos/trip/fail-assign` (`@Profile("demo")`) | 1 | Bật cờ → saga của B kết thúc COMPENSATED |
 | A7 | Passenger panel: login + gắn token trong `api.js`; kịch bản demo Flow A trong README | 1 | Chạy hết Flow A chỉ bằng UI |
 
-## Người B – Driver & Matching Saga (15đ)
+## B – Phạm Hải Long: Driver & Matching Saga (15đ)
 
 | # | Việc | Điểm | Xong khi |
 |---|---|---|---|
@@ -50,7 +52,7 @@ Chương chung (1–3, 5, 6, 16–19) và `slides.pdf`: cả nhóm, A tổng h�
 | B6 | Reject flow: consume `trip.driver-rejected` → release + thử tài xế khác | 1 | Test F9 xanh |
 | B7 | Driver panel hoàn chỉnh; viết `tests/e2e/flow-e.sh` **trước** khi làm B2 | 1 | Tài xế thao tác hết vòng đời bằng UI |
 
-## Người C – Reliability & Evaluation (15đ)
+## C – Lê Nguyên Nhật Minh: Reliability & Evaluation (15đ)
 
 | # | Việc | Điểm | Xong khi |
 |---|---|---|---|
@@ -102,7 +104,7 @@ Bên kia chưa xong thì dùng **stub** (Mockito, hoặc bắn event tay qua Rab
 
 ## Lịch (3 tuần đến hạn 22/11)
 
-| Ngày | A | B | C | Mốc chung |
+| Ngày | A – Nguyễn Minh Đăng | B – Phạm Hải Long | C – Lê Nguyên Nhật Minh | Mốc chung |
 |---|---|---|---|---|
 | 02–04/11 | Chốt contract; A4 | Chốt contract; B4 | Chốt contract; C6, bắt đầu C4 | Đăng ký nhóm với giảng viên; tạo repo GitHub, mời giảng viên |
 | 05–08/11 | A1, A2, A5 | B3, B1 | C4, C1 | |

@@ -71,9 +71,9 @@ Chi tiết từng task, điểm độ khó và ma trận test: [`docs/plan/team-
 
 | Thành viên | MSSV | Phụ trách | Demo flow | Chương report |
 |---|---|---|---|---|
-| A – _(họ tên)_ | | user-service, trip-service (vòng đời, tính cước), JWT gateway, Passenger panel | A, E (trip) | 4, 9, 12, 13 |
-| B – _(họ tên)_ | | driver-service (atomic reservation), matching-service (Saga), Driver panel | B, E (saga) | 7, 8, 10 |
-| C – _(họ tên)_ | | payment, notification (retry/DLQ), Redis GEO, CI, đo hiệu năng, Monitor | C, D, restart | 11, 14, 15 |
+| A – Nguyễn Minh Đăng | | user-service, trip-service (vòng đời, tính cước), JWT gateway, Passenger panel | A, E (trip) | 4, 9, 12, 13 |
+| B – Phạm Hải Long | | driver-service (atomic reservation), matching-service (Saga), Driver panel | B, E (saga) | 7, 8, 10 |
+| C – Lê Nguyên Nhật Minh | | payment, notification (retry/DLQ), Redis GEO, CI, đo hiệu năng, Monitor | C, D, restart | 11, 14, 15 |
 
 ## Trạng thái
 
