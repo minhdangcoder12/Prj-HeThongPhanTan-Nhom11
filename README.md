@@ -10,13 +10,87 @@
 
 ## Kiến trúc
 
-```text
-React+Vite demo-client :5173 ──REST + SSE──► api-gateway :8080 (routes /api/**, correlation id, size limit, event tap)
-                                                   │
-   user :8081   driver :8082   trip :8083   matching :8084 (+Redis GEO)   payment :8085   notification :8086
-      │            │             │              │                            │                │
-      └──── PostgreSQL (1 container, 6 database) ── RabbitMQ topic `rideflow.events` + DLX `rideflow.dlx` ────┘
+### Tổng quan
+
+```mermaid
+flowchart TB
+    UI["🖥️ Demo client · React + Vite · :5173"]
+    GW["🚪 API Gateway · :8080<br/>định tuyến /api/** · correlation ID · giới hạn body 64KB"]
+
+    subgraph BIZ["6 service nghiệp vụ – mỗi service 1 database PostgreSQL riêng"]
+        direction LR
+        USER["👤 user<br/>:8081"]
+        TRIP["🧾 trip<br/>:8083"]
+        MATCH["🧭 matching<br/>:8084"]
+        DRIVER["🚗 driver<br/>:8082"]
+        PAY["💳 payment<br/>:8085"]
+        NOTI["🔔 notification<br/>:8086"]
+        MATCH -->|"assign-driver"| TRIP
+        MATCH -->|"reserve · release"| DRIVER
+    end
+
+    MQ{{"🐇 RabbitMQ · rideflow.events + DLX rideflow.dlx"}}
+    REDIS[("Redis GEO")]
+
+    UI -->|"REST + SSE"| GW
+    GW -->|"REST /api/**"| BIZ
+    MATCH --- REDIS
+    BIZ <-.->|"event"| MQ
+    MQ -.->|"mọi event → màn hình Monitor"| GW
 ```
+
+**Đường liền** = gọi REST đồng bộ · **Đường đứt** = event bất đồng bộ qua RabbitMQ.
+
+### Các service
+
+| Service | Port | Database | Nhiệm vụ chính | Phụ trách |
+|---|---|---|---|---|
+| api-gateway | 8080 | – | Cửa vào duy nhất `/api/**`, gắn `X-Correlation-Id`, chặn body > 64KB, đẩy event cho Monitor qua SSE | Cả nhóm |
+| user-service | 8081 | `rideflow_user` | Đăng ký (role khách/tài xế), đăng nhập, JWT | A |
+| driver-service | 8082 | `rideflow_driver` | Trạng thái, vị trí tài xế; **giữ chỗ nguyên tử** (1 tài xế không nhận 2 chuyến) | B |
+| trip-service | 8083 | `rideflow_trip` | Vòng đời chuyến đi, tính cước | A |
+| matching-service | 8084 | `rideflow_matching` + Redis | Tìm tài xế gần nhất, điều phối **Saga** và compensation | B (Saga), C (Redis) |
+| payment-service | 8085 | `rideflow_payment` | Giả lập thanh toán khi chuyến hoàn thành | C |
+| notification-service | 8086 | `rideflow_notification` | Gửi thông báo cho khách và tài xế; retry → DLQ | C |
+
+### Giao tiếp
+
+| Kiểu | Dùng khi | Cơ chế tin cậy |
+|---|---|---|
+| **REST đồng bộ** | Client → gateway → service; matching gọi `/internal/**` của driver/trip | Timeout, retry có giới hạn, `Idempotency-Key` |
+| **Event bất đồng bộ** | Thông báo thay đổi trạng thái (`trip.created`, `driver.reserved`, `payment.succeeded`…) | Transactional Outbox khi gửi, Inbox chống trùng khi nhận, retry 2s → 5s → 10s rồi vào DLQ |
+| **SSE** | Gateway đẩy toàn bộ event lên màn hình Monitor | Chỉ để quan sát khi demo |
+
+### Luồng chính: đặt xe → hoàn thành → thanh toán
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor P as Khách
+    participant T as trip-service
+    participant M as matching-service
+    participant D as driver-service
+    participant Pay as payment-service
+    participant N as notification-service
+
+    P->>T: Đặt xe (POST /api/trips) – tính cước
+    T-)M: trip.created
+    M->>D: Giữ chỗ tài xế gần nhất (REST)
+    alt Tài xế đã bị khách khác giữ
+        D-->>M: 409 → thử tài xế kế tiếp
+    end
+    M->>T: Gán tài xế (REST)
+    alt Gán thất bại
+        M->>D: Thả tài xế (compensation)
+    end
+    T-)N: trip.driver-assigned → báo khách và tài xế
+    Note over T: Tài xế nhận → bắt đầu → hoàn thành
+    T-)Pay: trip.completed
+    Pay-)T: payment.succeeded → chuyến PAID
+    Pay-)N: báo đã thanh toán
+```
+
+Mũi tên `->>` là REST, mũi tên `-)` là event qua RabbitMQ.
 
 ## Cấu trúc repo
 
