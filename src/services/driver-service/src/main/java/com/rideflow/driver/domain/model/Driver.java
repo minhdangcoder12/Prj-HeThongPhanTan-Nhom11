@@ -42,4 +42,26 @@ public record Driver(
         return new Driver(id, userId, fullName, vehiclePlate, status,
                 currentTripId, reservedUntil, newLat, newLng, Instant.now());
     }
+
+    public Driver reserve(UUID tripId, Instant reservedUntil) {
+        if (status != DriverStatus.AVAILABLE) {
+            throw new IllegalStateException("Cannot reserve driver in status " + status);
+        }
+        if (tripId == null) {
+            throw new IllegalArgumentException("tripId cannot be null");
+        }
+        return new Driver(id, userId, fullName, vehiclePlate, DriverStatus.RESERVED,
+                tripId, reservedUntil, lat, lng, Instant.now());
+    }
+
+    public Driver release() {
+        if (status == DriverStatus.AVAILABLE) {
+            return this;
+        }
+        if (status != DriverStatus.RESERVED) {
+            throw new IllegalStateException("Cannot release driver in status " + status);
+        }
+        return new Driver(id, userId, fullName, vehiclePlate, DriverStatus.AVAILABLE,
+                null, null, lat, lng, Instant.now());
+    }
 }

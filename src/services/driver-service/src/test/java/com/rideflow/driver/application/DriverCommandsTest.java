@@ -3,11 +3,13 @@ package com.rideflow.driver.application;
 import com.rideflow.common.event.EventEnvelope;
 import com.rideflow.common.outbox.OutboxWriter;
 import com.rideflow.driver.application.port.out.DriverRepository;
+import com.rideflow.driver.application.port.out.IdempotencyRepository;
 import com.rideflow.driver.domain.model.Driver;
 import com.rideflow.driver.domain.model.DriverStatus;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -16,7 +18,9 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -24,7 +28,8 @@ class DriverCommandsTest {
 
     private final DriverRepository repository = mock(DriverRepository.class);
     private final OutboxWriter outbox = mock(OutboxWriter.class);
-    private final DriverCommands commands = new DriverCommands(repository, outbox);
+    private final IdempotencyRepository idempotencyRepository = mock(IdempotencyRepository.class);
+    private final DriverCommands commands = new DriverCommands(repository, outbox, idempotencyRepository);
 
     private final UUID driverId = UUID.randomUUID();
     private final Driver driver = new Driver(driverId, UUID.randomUUID(), "Nguyen Van A", "29A-12345",
@@ -93,5 +98,86 @@ class DriverCommandsTest {
         assertThatThrownBy(() -> commands.updateLocation(driverId, 10.7800, 106.7100))
                 .isInstanceOf(NoSuchElementException.class)
                 .hasMessageContaining(driverId.toString());
+    }
+
+    @Test
+    void reserveDriverSuccess() {
+        UUID tripId = UUID.randomUUID();
+        Driver available = new Driver(driverId, UUID.randomUUID(), "Nguyen Van A", "29A-12345",
+                DriverStatus.AVAILABLE, null, null, 10.7769, 106.7009, Instant.now());
+        Driver reserved = new Driver(driverId, available.userId(), available.fullName(), available.vehiclePlate(),
+                DriverStatus.RESERVED, tripId, Instant.now().plusSeconds(30), 10.7769, 106.7009, Instant.now());
+
+        when(repository.findById(driverId)).thenReturn(Optional.of(available), Optional.of(reserved));
+        when(repository.atomicReserve(eq(driverId), eq(tripId), any(Instant.class))).thenReturn(true);
+
+        Driver result = commands.reserveDriver(driverId, tripId, Duration.ofSeconds(30), "key-1");
+
+        assertThat(result.status()).isEqualTo(DriverStatus.RESERVED);
+        verify(idempotencyRepository).save(eq("key-1"), eq("reserve"), eq(200), any());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<EventEnvelope<DriverEventPayload>> captor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(outbox).append(captor.capture());
+        assertThat(captor.getValue().eventType()).isEqualTo("driver.reserved");
+        assertThat(captor.getValue().payload().status()).isEqualTo(DriverStatus.RESERVED);
+        assertThat(captor.getValue().payload().tripId()).isEqualTo(tripId);
+    }
+
+    @Test
+    void reserveDriverConflict() {
+        UUID tripId = UUID.randomUUID();
+        Driver available = new Driver(driverId, UUID.randomUUID(), "Nguyen Van A", "29A-12345",
+                DriverStatus.AVAILABLE, null, null, 10.7769, 106.7009, Instant.now());
+
+        when(repository.findById(driverId)).thenReturn(Optional.of(available));
+        when(repository.atomicReserve(eq(driverId), eq(tripId), any(Instant.class))).thenReturn(false);
+
+        assertThatThrownBy(() -> commands.reserveDriver(driverId, tripId, Duration.ofSeconds(30), "key-2"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("cannot be reserved");
+
+        verify(idempotencyRepository).save(eq("key-2"), eq("reserve"), eq(409), any());
+        verify(outbox, never()).append(any());
+    }
+
+    @Test
+    void reserveDriverIdempotentCachedSuccess() {
+        UUID tripId = UUID.randomUUID();
+        Driver reserved = new Driver(driverId, UUID.randomUUID(), "Nguyen Van A", "29A-12345",
+                DriverStatus.RESERVED, tripId, Instant.now().plusSeconds(30), 10.7769, 106.7009, Instant.now());
+
+        when(idempotencyRepository.find("key-cached", "reserve"))
+                .thenReturn(Optional.of(new IdempotencyRepository.CachedResponse(200, "{}")));
+        when(repository.findById(driverId)).thenReturn(Optional.of(reserved));
+
+        Driver result = commands.reserveDriver(driverId, tripId, Duration.ofSeconds(30), "key-cached");
+
+        assertThat(result.status()).isEqualTo(DriverStatus.RESERVED);
+        verify(repository, never()).atomicReserve(any(), any(), any());
+        verify(outbox, never()).append(any());
+    }
+
+    @Test
+    void releaseDriverSuccess() {
+        UUID tripId = UUID.randomUUID();
+        Driver reserved = new Driver(driverId, UUID.randomUUID(), "Nguyen Van A", "29A-12345",
+                DriverStatus.RESERVED, tripId, Instant.now().plusSeconds(30), 10.7769, 106.7009, Instant.now());
+        Driver available = new Driver(driverId, reserved.userId(), reserved.fullName(), reserved.vehiclePlate(),
+                DriverStatus.AVAILABLE, null, null, 10.7769, 106.7009, Instant.now());
+
+        when(repository.findById(driverId)).thenReturn(Optional.of(reserved), Optional.of(available));
+        when(repository.atomicRelease(eq(driverId), eq(tripId))).thenReturn(true);
+
+        Driver result = commands.releaseDriver(driverId, tripId, "rel-key");
+
+        assertThat(result.status()).isEqualTo(DriverStatus.AVAILABLE);
+        verify(idempotencyRepository).save(eq("rel-key"), eq("release"), eq(200), any());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<EventEnvelope<DriverEventPayload>> captor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(outbox).append(captor.capture());
+        assertThat(captor.getValue().eventType()).isEqualTo("driver.released");
+        assertThat(captor.getValue().payload().status()).isEqualTo(DriverStatus.AVAILABLE);
     }
 }

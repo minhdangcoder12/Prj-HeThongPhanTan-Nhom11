@@ -6,6 +6,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,5 +34,17 @@ class DriverPersistenceAdapter implements DriverRepository {
     @Override
     public Driver save(Driver driver) {
         return jpa.save(DriverJpaEntity.fromDomain(driver)).toDomain();
+    }
+
+    @Override
+    public boolean atomicReserve(UUID driverId, UUID tripId, Instant reservedUntil) {
+        int updated = jpa.atomicReserve(driverId, tripId, reservedUntil, Instant.now());
+        return updated > 0;
+    }
+
+    @Override
+    public boolean atomicRelease(UUID driverId, UUID tripId) {
+        int updated = jpa.atomicRelease(driverId, tripId, Instant.now());
+        return updated > 0;
     }
 }
