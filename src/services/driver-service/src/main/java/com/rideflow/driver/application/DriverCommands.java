@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -131,6 +132,22 @@ public class DriverCommands {
         }
 
         return updated;
+    }
+
+    public int sweepExpiredReservations() {
+        List<Driver> expired = repository.findExpiredReservations(Instant.now());
+        int count = 0;
+        for (Driver d : expired) {
+            boolean released = repository.atomicRelease(d.id(), d.currentTripId());
+            if (released) {
+                Driver updated = repository.findById(d.id()).orElse(null);
+                if (updated != null) {
+                    publishEvent(EVENT_DRIVER_RELEASED, updated);
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 
     private void publishEvent(String eventType, Driver driver) {

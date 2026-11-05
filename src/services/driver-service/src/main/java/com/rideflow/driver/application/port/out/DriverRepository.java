@@ -18,4 +18,6 @@ public interface DriverRepository {
     boolean atomicReserve(UUID driverId, UUID tripId, Instant reservedUntil);
 
     boolean atomicRelease(UUID driverId, UUID tripId);
+
+    List<Driver> findExpiredReservations(Instant now);
 }

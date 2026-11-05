@@ -11,6 +11,7 @@ import org.mockito.ArgumentCaptor;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
@@ -173,6 +174,30 @@ class DriverCommandsTest {
 
         assertThat(result.status()).isEqualTo(DriverStatus.AVAILABLE);
         verify(idempotencyRepository).save(eq("rel-key"), eq("release"), eq(200), any());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<EventEnvelope<DriverEventPayload>> captor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(outbox).append(captor.capture());
+        assertThat(captor.getValue().eventType()).isEqualTo("driver.released");
+        assertThat(captor.getValue().payload().status()).isEqualTo(DriverStatus.AVAILABLE);
+    }
+
+    @Test
+    void sweepExpiredReservationsReleasesDriverAndEmitsEvent() {
+        UUID tripId = UUID.randomUUID();
+        Driver expiredDriver = new Driver(driverId, UUID.randomUUID(), "Nguyen Van A", "29A-12345",
+                DriverStatus.RESERVED, tripId, Instant.now().minusSeconds(10), 10.7769, 106.7009, Instant.now());
+        Driver availableDriver = new Driver(driverId, expiredDriver.userId(), expiredDriver.fullName(), expiredDriver.vehiclePlate(),
+                DriverStatus.AVAILABLE, null, null, 10.7769, 106.7009, Instant.now());
+
+        when(repository.findExpiredReservations(any(Instant.class))).thenReturn(List.of(expiredDriver));
+        when(repository.atomicRelease(eq(driverId), eq(tripId))).thenReturn(true);
+        when(repository.findById(driverId)).thenReturn(Optional.of(availableDriver));
+
+        int swept = commands.sweepExpiredReservations();
+
+        assertThat(swept).isEqualTo(1);
+        verify(repository).atomicRelease(eq(driverId), eq(tripId));
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<EventEnvelope<DriverEventPayload>> captor = ArgumentCaptor.forClass(EventEnvelope.class);

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 interface DriverJpaRepository extends JpaRepository<DriverJpaEntity, UUID> {
@@ -17,4 +18,7 @@ interface DriverJpaRepository extends JpaRepository<DriverJpaEntity, UUID> {
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "UPDATE drivers SET status = 'AVAILABLE', current_trip_id = NULL, reserved_until = NULL, updated_at = :now WHERE id = :driverId AND status = 'RESERVED' AND (:tripId IS NULL OR current_trip_id = :tripId)", nativeQuery = true)
     int atomicRelease(@Param("driverId") UUID driverId, @Param("tripId") UUID tripId, @Param("now") Instant now);
+
+    @Query("SELECT d FROM DriverJpaEntity d WHERE d.status = com.rideflow.driver.domain.model.DriverStatus.RESERVED AND d.reservedUntil < :now")
+    List<DriverJpaEntity> findExpiredReservations(@Param("now") Instant now);
 }

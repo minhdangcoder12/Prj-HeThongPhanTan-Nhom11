@@ -47,4 +47,10 @@ class DriverPersistenceAdapter implements DriverRepository {
         int updated = jpa.atomicRelease(driverId, tripId, Instant.now());
         return updated > 0;
     }
+
+    @Override
+    public List<Driver> findExpiredReservations(Instant now) {
+        return jpa.findExpiredReservations(now).stream()
+                .map(DriverJpaEntity::toDomain).toList();
+    }
 }
