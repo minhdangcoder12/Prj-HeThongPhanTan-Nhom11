@@ -12,6 +12,7 @@ import com.rideflow.matching.domain.model.SagaStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,29 @@ public class MatchingSagaCoordinator {
             return saga;
         }
 
+        return tryMatchCandidate(saga, pickupLat, pickupLng, causationId);
+    }
+
+    public MatchingSaga handleDriverRejected(UUID tripId, UUID driverId, double pickupLat, double pickupLng, UUID causationId) {
+        MatchingSaga saga = repository.findByTripId(tripId).orElse(null);
+        if (saga == null) {
+            return null;
+        }
+
+        repository.recordAttempt(MatchingAttempt.of(saga.id(), driverId, "REJECTED", "Driver rejected trip"));
+
+        String releaseIdempotencyKey = "saga-release-reject-" + saga.id() + "-" + driverId;
+        driverServiceClient.release(driverId, tripId, releaseIdempotencyKey);
+
+        saga = new MatchingSaga(saga.id(), tripId, null, SagaStatus.STARTED,
+                "SEARCHING_AFTER_REJECT", saga.attempts(), null, saga.createdAt(), Instant.now());
+        saga = repository.save(saga);
+        publishSagaChanged(saga, "Driver " + driverId + " rejected, selecting next candidate", causationId);
+
+        return tryMatchCandidate(saga, pickupLat, pickupLng, causationId);
+    }
+
+    private MatchingSaga tryMatchCandidate(MatchingSaga saga, double pickupLat, double pickupLng, UUID causationId) {
         List<UUID> triedDrivers = new ArrayList<>(repository.findAttemptsBySagaId(saga.id()).stream()
                 .map(MatchingAttempt::driverId)
                 .toList());
@@ -66,7 +90,7 @@ public class MatchingSagaCoordinator {
             saga = saga.fail("No available driver candidates found");
             saga = repository.save(saga);
             publishSagaChanged(saga, "No available driver candidates found", causationId);
-            publishNoDriver(tripId, causationId);
+            publishNoDriver(saga.tripId(), causationId);
             return saga;
         }
 
@@ -76,7 +100,7 @@ public class MatchingSagaCoordinator {
             publishSagaChanged(saga, null, causationId);
 
             String reserveIdempotencyKey = "saga-reserve-" + saga.id() + "-" + candidate;
-            boolean reserved = driverServiceClient.reserve(candidate, tripId, reserveIdempotencyKey);
+            boolean reserved = driverServiceClient.reserve(candidate, saga.tripId(), reserveIdempotencyKey);
 
             if (!reserved) {
                 repository.recordAttempt(MatchingAttempt.of(saga.id(), candidate, "RESERVE_FAILED", "Driver conflict or unavailable"));
@@ -88,8 +112,8 @@ public class MatchingSagaCoordinator {
             saga = repository.save(saga);
             publishSagaChanged(saga, null, causationId);
 
-            String assignIdempotencyKey = "saga-assign-" + saga.id() + "-" + tripId;
-            boolean assigned = tripServiceClient.assignDriver(tripId, candidate, assignIdempotencyKey);
+            String assignIdempotencyKey = "saga-assign-" + saga.id() + "-" + saga.tripId();
+            boolean assigned = tripServiceClient.assignDriver(saga.tripId(), candidate, assignIdempotencyKey);
 
             if (assigned) {
                 saga = saga.tripAssigned();
@@ -107,7 +131,7 @@ public class MatchingSagaCoordinator {
                 publishSagaChanged(saga, "Assign driver failed", causationId);
 
                 String releaseIdempotencyKey = "saga-release-" + saga.id() + "-" + candidate;
-                driverServiceClient.release(candidate, tripId, releaseIdempotencyKey);
+                driverServiceClient.release(candidate, saga.tripId(), releaseIdempotencyKey);
 
                 saga = saga.compensated();
                 saga = repository.save(saga);
@@ -119,7 +143,7 @@ public class MatchingSagaCoordinator {
         saga = saga.fail("All candidates exhausted");
         saga = repository.save(saga);
         publishSagaChanged(saga, "All candidates exhausted", causationId);
-        publishNoDriver(tripId, causationId);
+        publishNoDriver(saga.tripId(), causationId);
         return saga;
     }
 

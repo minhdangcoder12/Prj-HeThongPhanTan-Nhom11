@@ -12,6 +12,7 @@ import com.rideflow.matching.domain.model.SagaStatus;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -122,5 +123,35 @@ class MatchingSagaCoordinatorTest {
 
         assertThat(result.status()).isEqualTo(SagaStatus.COMPENSATED);
         verify(driverServiceClient).release(eq(driverId), eq(tripId), anyString());
+    }
+
+    @Test
+    void driverRejectsTrip_releasesRejectingDriverAndAssignsNextCandidate() {
+        UUID rejectingDriver = UUID.randomUUID();
+        UUID nextDriver = UUID.randomUUID();
+
+        MatchingSaga existingSaga = new MatchingSaga(UUID.randomUUID(), tripId, rejectingDriver,
+                SagaStatus.COMPLETED, "COMPLETED", 1, null, Instant.now().minusSeconds(10), Instant.now());
+
+        when(repository.findByTripId(tripId)).thenReturn(Optional.of(existingSaga));
+        when(repository.save(any(MatchingSaga.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(driverLocator.nearestAvailable(anyDouble(), anyDouble(), anyInt(), any()))
+                .thenReturn(List.of(nextDriver));
+        when(driverServiceClient.reserve(eq(nextDriver), eq(tripId), anyString())).thenReturn(true);
+        when(tripServiceClient.assignDriver(eq(tripId), eq(nextDriver), anyString())).thenReturn(true);
+
+        MatchingSaga result = coordinator.handleDriverRejected(tripId, rejectingDriver, 10.7769, 106.7009, causationId);
+
+        assertThat(result).isNotNull();
+        assertThat(result.status()).isEqualTo(SagaStatus.COMPLETED);
+        assertThat(result.driverId()).isEqualTo(nextDriver);
+
+        // Verify releasing the rejecting driver
+        verify(driverServiceClient).release(eq(rejectingDriver), eq(tripId), anyString());
+        // Verify reserving and assigning the new driver
+        verify(driverServiceClient).reserve(eq(nextDriver), eq(tripId), anyString());
+        verify(tripServiceClient).assignDriver(eq(tripId), eq(nextDriver), anyString());
+        // Verify attempts recorded (1 for reject, 1 for new driver reserved)
+        verify(repository, times(2)).recordAttempt(any(MatchingAttempt.class));
     }
 }
