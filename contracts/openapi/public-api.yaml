@@ -115,9 +115,9 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
   /api/chaos/trip/fail-assign:
     put:
-      x-phase: 4
+      x-phase: 1
       x-profile: demo
-      summary: Make internal assign-driver fail permanently (Flow E compensation)
+      summary: "Make internal assign-driver return 503 (no change to the trip) until turned off, so the saga compensates (Flow E). Response { failAssign }"
       requestBody:
         content: { application/json: { schema: { type: object, properties: { enabled: { type: boolean } } } } }
       responses: { "200": { description: ok } }
