@@ -27,7 +27,8 @@ Yêu cầu: Docker Desktop, Git Bash (Windows) hoặc bash, Node 18+. JDK 21+ ch
 
 ## 2. Git & GitHub
 
-- **Không push thẳng lên `main`.** Mỗi người **1 branch cho 1 nhóm task cùng mảng**, không cần mỗi task 1 branch: `feat/<mảng>`, vd `feat/auth` (A4+A5+A7), `feat/saga` (B1+B2). Sửa lỗi: `fix/<mô-tả>`.
+- **Không push thẳng lên `main`.** Mỗi người **1 branch cho 1 nhóm task cùng mảng**, không cần mỗi task 1 branch.
+- Tên branch phải **đọc là hiểu đang làm gì**: `feat/<service-hoặc-mảng>-<việc-chính>`, chữ thường, nối bằng `-`, không chỉ ghi mã task. Vd `feat/trip-payment-and-chaos` (A3+A6), `feat/login-jwt-passenger-ui` (A4+A5+A7), `feat/matching-saga-compensation` (B1+B2). Sửa lỗi: `fix/<service>-<lỗi>`, vd `fix/trip-history-foreign-key`.
 - Trong branch, **mỗi task ít nhất 1 commit riêng**; tiêu đề PR ghi các mã task, vd `A4 A5 A7: đăng nhập + JWT`.
 - Merge xong thì xoá branch (bật GitHub *Settings → Automatically delete head branches*); nhóm task tiếp theo tạo branch mới từ `main`.
 - Commit bằng **tài khoản GitHub của chính mình** (đề tính đóng góp theo commit). Không commit hộ người khác.
