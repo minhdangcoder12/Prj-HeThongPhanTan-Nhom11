@@ -23,7 +23,7 @@ channels:
   driver.reserved:             { address: driver.reserved,             x-producer: driver-service,       x-phase: 1, messages: { m: { $ref: "#/components/messages/DriverEvent" } } }
   driver.released:             { address: driver.released,             x-producer: driver-service,       x-phase: 4, messages: { m: { $ref: "#/components/messages/DriverEvent" } } }
   matching.saga-changed:       { address: matching.saga-changed,       x-producer: matching-service,     x-phase: 1, messages: { m: { $ref: "#/components/messages/SagaEvent" } } }
-  payment.succeeded:           { address: payment.succeeded,           x-producer: payment-service,      x-phase: 2, messages: { m: { $ref: "#/components/messages/PaymentEvent" } } }
+  payment.succeeded:           { address: payment.succeeded,           x-producer: payment-service,      x-phase: 2, description: "trip-service (queue trip.payment-events.q) reads payload.tripId - it MUST be set - and moves COMPLETED -> PAID; also payment.failed -> PAYMENT_FAILED", messages: { m: { $ref: "#/components/messages/PaymentEvent" } } }
   payment.failed:              { address: payment.failed,              x-producer: payment-service,      x-phase: 2, messages: { m: { $ref: "#/components/messages/PaymentEvent" } } }
   notification.sent:           { address: notification.sent,           x-producer: notification-service, x-phase: 2, messages: { m: { $ref: "#/components/messages/NotificationEvent" } } }
   notification.failed:         { address: notification.failed,         x-producer: notification-service, x-phase: 5, messages: { m: { $ref: "#/components/messages/NotificationEvent" } } }
