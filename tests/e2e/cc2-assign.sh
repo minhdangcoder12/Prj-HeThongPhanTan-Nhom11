@@ -28,8 +28,10 @@ check C3 "trip is DRIVER_ASSIGNED to that driver" "DRIVER_ASSIGNED $DRIVER" "$(j
 
 check C4 "another driver is refused" "409" "$(assign "cc2-$TRIP-other" "$OTHER")"
 
-sleep 3 # outbox relay + notification consumer
-http GET /api/notifications
-check C5 "exactly one trip.driver-assigned event" "1" "$(printf '%s' "$BODY" | grep -o "trip.driver-assigned for trip $TRIP" | wc -l | tr -d ' ')"
+# Count in trip-service's own outbox: independent of how other services word or store their side effects.
+source .env
+EVENTS=$(docker exec rideflow-postgres-1 psql -U "$POSTGRES_USER" -d rideflow_trip -tAc \
+  "select count(*) from outbox_event where aggregate_id = '$TRIP' and event_type = 'trip.driver-assigned'")
+check C5 "exactly one trip.driver-assigned event" "1" "$EVENTS"
 
 summary
