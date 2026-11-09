@@ -42,6 +42,11 @@ class TripPersistenceAdapter implements TripRepository {
     }
 
     @Override
+    public Optional<Trip> findByIdForUpdate(UUID id) {
+        return jpa.findForUpdate(id).map(TripJpaEntity::toDomain);
+    }
+
+    @Override
     public Trip save(Trip trip) {
         // Flush now: the JDBC history insert right after this needs the trips row (FK trip_status_history.trip_id).
         return jpa.saveAndFlush(TripJpaEntity.fromDomain(trip)).toDomain();

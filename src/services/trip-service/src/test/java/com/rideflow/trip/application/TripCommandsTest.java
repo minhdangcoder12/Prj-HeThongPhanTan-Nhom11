@@ -1,6 +1,7 @@
 package com.rideflow.trip.application;
 
 import com.rideflow.common.event.EventEnvelope;
+import com.rideflow.common.outbox.InboxGuard;
 import com.rideflow.common.outbox.OutboxWriter;
 import com.rideflow.trip.application.port.out.IdempotencyRepository;
 import com.rideflow.trip.application.port.out.TripRepository;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,7 +33,8 @@ class TripCommandsTest {
     private final TripRepository trips = mock(TripRepository.class);
     private final IdempotencyRepository idempotency = mock(IdempotencyRepository.class);
     private final OutboxWriter outbox = mock(OutboxWriter.class);
-    private final TripCommands commands = new TripCommands(trips, idempotency, outbox);
+    private final InboxGuard inbox = mock(InboxGuard.class);
+    private final TripCommands commands = new TripCommands(trips, idempotency, outbox, inbox);
     private final UUID passenger = UUID.randomUUID();
 
     @BeforeEach
@@ -44,7 +47,8 @@ class TripCommandsTest {
         Trip withStatus = new Trip(trip.id(), passenger, status == TripStatus.REQUESTED ? null : UUID.randomUUID(),
                 status, trip.pickupLat(), trip.pickupLng(), trip.dropoffLat(), trip.dropoffLng(), trip.fare(),
                 trip.createdAt(), trip.updatedAt());
-        when(trips.findById(withStatus.id())).thenReturn(Optional.of(withStatus));
+        // Commands read with a row lock so two concurrent commands on one trip run one after the other.
+        when(trips.findByIdForUpdate(withStatus.id())).thenReturn(Optional.of(withStatus));
         return withStatus;
     }
 
@@ -140,5 +144,98 @@ class TripCommandsTest {
     @Test
     void unknownTripIsNotFound() {
         assertThatThrownBy(() -> commands.accept(UUID.randomUUID())).isInstanceOf(NoSuchElementException.class);
+    }
+
+    // ---- A2: internal assign-driver, called by the matching saga ----
+
+    @Test
+    void assignDriverEmitsDriverAssignedAndStoresKey() {
+        Trip trip = stored(TripStatus.REQUESTED);
+        UUID driver = UUID.randomUUID();
+
+        Trip assigned = commands.assignDriver(trip.id(), driver, "saga-1:assign");
+
+        assertThat(assigned.status()).isEqualTo(TripStatus.DRIVER_ASSIGNED);
+        assertThat(assigned.driverId()).isEqualTo(driver);
+        EventEnvelope<TripEventPayload> event = appendedEvent();
+        assertThat(event.eventType()).isEqualTo("trip.driver-assigned");
+        assertThat(event.payload().driverId()).isEqualTo(driver);
+        verify(trips).recordTransition(trip.id(), TripStatus.REQUESTED, TripStatus.DRIVER_ASSIGNED, "SYSTEM", event.correlationId());
+        verify(idempotency).save("saga-1:assign", TripCommands.ASSIGN, 200, "\"" + trip.id() + "\"");
+    }
+
+    @Test
+    void assignReplayWithSameKeyChangesNothing() {
+        Trip trip = stored(TripStatus.DRIVER_ASSIGNED);
+        when(idempotency.find("saga-1:assign", TripCommands.ASSIGN))
+                .thenReturn(Optional.of(new IdempotencyRepository.CachedResponse(200, "\"" + trip.id() + "\"")));
+
+        Trip result = commands.assignDriver(trip.id(), trip.driverId(), "saga-1:assign");
+
+        assertThat(result.id()).isEqualTo(trip.id());
+        verify(trips, never()).save(any());
+        verify(outbox, never()).append(any());
+    }
+
+    @Test
+    void assignSameDriverAgainIsANoOpEvenWithNewKey() {
+        // The caller that lost the row-lock race sees the winner's result.
+        Trip trip = stored(TripStatus.DRIVER_ASSIGNED);
+
+        Trip result = commands.assignDriver(trip.id(), trip.driverId(), "other-key");
+
+        assertThat(result.driverId()).isEqualTo(trip.driverId());
+        verify(trips, never()).save(any());
+        verify(outbox, never()).append(any());
+    }
+
+    @Test
+    void assignAnotherDriverToAnAssignedTripIsRefused() {
+        Trip trip = stored(TripStatus.DRIVER_ASSIGNED);
+
+        assertThatThrownBy(() -> commands.assignDriver(trip.id(), UUID.randomUUID(), "k"))
+                .isInstanceOf(InvalidTripTransitionException.class);
+        verify(outbox, never()).append(any());
+    }
+
+    // ---- A2: trip.no-driver from matching-service ----
+
+    private EventEnvelope<Map<String, Object>> noDriver(UUID tripId) {
+        return EventEnvelope.of("trip.no-driver", tripId.toString(), "matching-service", null, Map.of("tripId", tripId.toString()));
+    }
+
+    @Test
+    void noDriverMovesWaitingTripToNoDriverWithoutRepublishing() {
+        Trip trip = stored(TripStatus.REQUESTED);
+        var event = noDriver(trip.id());
+        when(inbox.firstTime(event.eventId(), TripCommands.NO_DRIVER_CONSUMER, "trip.no-driver")).thenReturn(true);
+
+        commands.markNoDriver(event);
+
+        verify(trips).save(org.mockito.ArgumentMatchers.argThat(t -> t.status() == TripStatus.NO_DRIVER));
+        verify(trips).recordTransition(trip.id(), TripStatus.REQUESTED, TripStatus.NO_DRIVER, "SYSTEM", event.correlationId());
+        verify(outbox, never()).append(any()); // re-emitting trip.no-driver would loop back to this queue
+    }
+
+    @Test
+    void duplicateNoDriverIsIgnored() {
+        Trip trip = stored(TripStatus.REQUESTED);
+        var event = noDriver(trip.id());
+        when(inbox.firstTime(event.eventId(), TripCommands.NO_DRIVER_CONSUMER, "trip.no-driver")).thenReturn(false);
+
+        commands.markNoDriver(event);
+
+        verify(trips, never()).save(any());
+    }
+
+    @Test
+    void lateNoDriverForAnAssignedTripIsSkippedNotThrown() {
+        Trip trip = stored(TripStatus.DRIVER_ASSIGNED);
+        var event = noDriver(trip.id());
+        when(inbox.firstTime(event.eventId(), TripCommands.NO_DRIVER_CONSUMER, "trip.no-driver")).thenReturn(true);
+
+        commands.markNoDriver(event); // rule R3: out-of-order -> WARN and skip, no retry storm
+
+        verify(trips, never()).save(any());
     }
 }
