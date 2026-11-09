@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Domain model: plain Java, no framework (rule R2). Put behaviour here, not in adapters. */
+/** Domain model: plain Java, no framework (rule R2). Every status change goes through {@link TripStatus#canMoveTo}. */
 public record Trip(
         UUID id,
         UUID passengerId,
@@ -17,4 +17,30 @@ public record Trip(
         BigDecimal fare,
         Instant createdAt,
         Instant updatedAt) {
+
+    public static Trip request(UUID passengerId, double pickupLat, double pickupLng,
+                               double dropoffLat, double dropoffLng, Instant now) {
+        return new Trip(UUID.randomUUID(), passengerId, null, TripStatus.REQUESTED, pickupLat, pickupLng,
+                dropoffLat, dropoffLng, Fare.estimate(pickupLat, pickupLng, dropoffLat, dropoffLng), now, now);
+    }
+
+    public Trip transitionTo(TripStatus next, Instant now) {
+        return withStatus(next, driverId, now);
+    }
+
+    public Trip assignDriver(UUID driver, Instant now) {
+        return withStatus(TripStatus.DRIVER_ASSIGNED, driver, now);
+    }
+
+    /** Driver said no: the trip goes back to matching and forgets that driver. */
+    public Trip rejectByDriver(Instant now) {
+        return withStatus(TripStatus.MATCHING, null, now);
+    }
+
+    private Trip withStatus(TripStatus next, UUID driver, Instant now) {
+        if (!status.canMoveTo(next)) {
+            throw new InvalidTripTransitionException(status, next);
+        }
+        return new Trip(id, passengerId, driver, next, pickupLat, pickupLng, dropoffLat, dropoffLng, fare, createdAt, now);
+    }
 }
