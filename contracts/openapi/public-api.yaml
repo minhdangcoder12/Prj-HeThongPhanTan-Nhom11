@@ -29,7 +29,7 @@ paths:
       responses: { "200": { description: Trip[] } }
     post:
       x-phase: 1
-      summary: Passenger requests a trip -> REQUESTED, emits trip.created
+      summary: "Passenger requests a trip -> REQUESTED, emits trip.created. fare (VND) = 12000 + 4000/km haversine, rounded up to 1000. Same Idempotency-Key returns the first trip"
       parameters: [ { $ref: "#/components/parameters/IdempotencyKey" } ]
       requestBody:
         content: { application/json: { schema: { $ref: "#/components/schemas/CreateTrip" } } }
@@ -47,7 +47,7 @@ paths:
   /api/trips/{id}/accept:
     post: { x-phase: 1, summary: "Driver accepts: DRIVER_ASSIGNED -> ACCEPTED", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "409": { $ref: "#/components/responses/Problem" } } }
   /api/trips/{id}/reject:
-    post: { x-phase: 4, summary: "Driver rejects: back to MATCHING, emits trip.driver-rejected", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "409": { $ref: "#/components/responses/Problem" } } }
+    post: { x-phase: 1, summary: "Driver rejects: DRIVER_ASSIGNED -> MATCHING, emits trip.driver-rejected (payload.driverId = rejecting driver)", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "409": { $ref: "#/components/responses/Problem" } } }
   /api/trips/{id}/start:
     post: { x-phase: 1, summary: "ACCEPTED -> IN_PROGRESS", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "409": { $ref: "#/components/responses/Problem" } } }
   /api/trips/{id}/complete:
@@ -124,7 +124,7 @@ components:
       description: RFC 7807 ProblemDetail
       content: { application/problem+json: { schema: { type: object } } }
   schemas:
-    Point: { type: object, properties: { lat: { type: number }, lng: { type: number } } }
+    Point: { type: object, required: [lat, lng], properties: { lat: { type: number, minimum: -90, maximum: 90 }, lng: { type: number, minimum: -180, maximum: 180 } } }
     CreateTrip:
       type: object
       required: [passengerId, pickup, dropoff]
