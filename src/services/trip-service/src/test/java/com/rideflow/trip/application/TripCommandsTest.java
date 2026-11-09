@@ -75,18 +75,31 @@ class TripCommandsTest {
     }
 
     @Test
-    void createWithIdempotencyKeyStoresTheTripId() {
-        when(idempotency.find("k1", TripCommands.CREATE)).thenReturn(Optional.empty());
-
+    void createWithIdempotencyKeyStoresTheTripIdUnderThePassenger() {
         Trip trip = commands.create(passenger, 10.7765, 106.7010, 10.7626, 106.6602, "k1");
 
-        verify(idempotency).save("k1", TripCommands.CREATE, 201, "\"" + trip.id() + "\"");
+        verify(idempotency).save(passenger + ":k1", TripCommands.CREATE, 201, "\"" + trip.id() + "\"");
+    }
+
+    @Test
+    void sameKeyFromAnotherPassengerCreatesTheirOwnTrip() {
+        // Review fix 1: keys are client-chosen, so a key is only "the same request" for the same passenger.
+        Trip existing = stored(TripStatus.REQUESTED);
+        var cached = Optional.of(new IdempotencyRepository.CachedResponse(201, "\"" + existing.id() + "\""));
+        when(idempotency.find(passenger + ":k1", TripCommands.CREATE)).thenReturn(cached);
+        when(idempotency.find("k1", TripCommands.CREATE)).thenReturn(cached); // what the unscoped code looked up
+        UUID other = UUID.randomUUID();
+
+        Trip trip = commands.create(other, 10.7765, 106.7010, 10.7626, 106.6602, "k1");
+
+        assertThat(trip.passengerId()).isEqualTo(other);
+        assertThat(trip.id()).isNotEqualTo(existing.id());
     }
 
     @Test
     void replayedIdempotencyKeyReturnsSameTripWithoutNewEvent() {
         Trip existing = stored(TripStatus.REQUESTED);
-        when(idempotency.find("k1", TripCommands.CREATE))
+        when(idempotency.find(passenger + ":k1", TripCommands.CREATE))
                 .thenReturn(Optional.of(new IdempotencyRepository.CachedResponse(201, "\"" + existing.id() + "\"")));
 
         Trip trip = commands.create(passenger, 10.7765, 106.7010, 10.7626, 106.6602, "k1");
@@ -161,13 +174,24 @@ class TripCommandsTest {
         assertThat(event.eventType()).isEqualTo("trip.driver-assigned");
         assertThat(event.payload().driverId()).isEqualTo(driver);
         verify(trips).recordTransition(trip.id(), TripStatus.REQUESTED, TripStatus.DRIVER_ASSIGNED, "SYSTEM", event.correlationId());
-        verify(idempotency).save("saga-1:assign", TripCommands.ASSIGN, 200, "\"" + trip.id() + "\"");
+        verify(idempotency).save(trip.id() + ":saga-1:assign", TripCommands.ASSIGN, 200, "\"" + trip.id() + "\"");
+    }
+
+    @Test
+    void keyAlreadyUsedForAnotherTripStillAssignsThisTrip() {
+        // Review fix 1: the key is scoped to the trip, so reuse on another trip is not a silent no-op.
+        Trip trip = stored(TripStatus.REQUESTED);
+        when(idempotency.find("saga-1:assign", TripCommands.ASSIGN)) // stored unscoped by an older caller / other trip
+                .thenReturn(Optional.of(new IdempotencyRepository.CachedResponse(200, "\"x\"")));
+
+        assertThat(commands.assignDriver(trip.id(), UUID.randomUUID(), "saga-1:assign").status())
+                .isEqualTo(TripStatus.DRIVER_ASSIGNED);
     }
 
     @Test
     void assignReplayWithSameKeyChangesNothing() {
         Trip trip = stored(TripStatus.DRIVER_ASSIGNED);
-        when(idempotency.find("saga-1:assign", TripCommands.ASSIGN))
+        when(idempotency.find(trip.id() + ":saga-1:assign", TripCommands.ASSIGN))
                 .thenReturn(Optional.of(new IdempotencyRepository.CachedResponse(200, "\"" + trip.id() + "\"")));
 
         Trip result = commands.assignDriver(trip.id(), trip.driverId(), "saga-1:assign");

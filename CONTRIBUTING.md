@@ -18,7 +18,7 @@ Yêu cầu: Docker Desktop, Git Bash (Windows) hoặc bash, Node 18+. JDK 21+ ch
 | Chạy cả hệ thống | `bash scripts/start.sh` (build + chờ mọi service UP) |
 | Chạy lại 1 service sau khi sửa | `bash scripts/start.sh trip-service` |
 | Dừng | `bash scripts/compose.sh down` |
-| Build + unit test + ArchUnit | `./mvnw verify` (Windows CMD: `mvnw.cmd verify`) |
+| Build + unit test + ArchUnit | `./mvnw verify` (Windows CMD: `mvnw.cmd verify`). **Docker phải đang chạy**: test DB dùng Testcontainers (Postgres thật) |
 | Build 1 service | `./mvnw -pl src/services/trip-service -am verify` |
 | Frontend | `cd src/demo-client && npm install && npm run dev` → http://localhost:5173 |
 | Eval end-to-end (stack đang chạy) | `bash tests/e2e/regression.sh` (phải **9/9**), `bash tests/e2e/flow-a.sh` (tiến độ = bước FAIL đầu tiên) |

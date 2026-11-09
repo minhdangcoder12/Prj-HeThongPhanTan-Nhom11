@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,6 +25,9 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/trips")
 class TripController {
+
+    /** idempotency_key is VARCHAR(200); the use case prefixes the client key with a 36-char UUID + ':'. */
+    static final int MAX_KEY = 160;
 
     record Point(@NotNull @DecimalMin("-90") @DecimalMax("90") Double lat,
                  @NotNull @DecimalMin("-180") @DecimalMax("180") Double lng) {}
@@ -52,7 +56,7 @@ class TripController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     Trip create(@Valid @RequestBody CreateTripRequest req,
-                @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey) {
+                @RequestHeader(name = "Idempotency-Key", required = false) @Size(max = MAX_KEY) String idempotencyKey) {
         return commands.create(req.passengerId(), req.pickup().lat(), req.pickup().lng(),
                 req.dropoff().lat(), req.dropoff().lng(), idempotencyKey);
     }
