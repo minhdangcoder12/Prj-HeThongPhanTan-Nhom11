@@ -27,12 +27,23 @@ class InternalTripControllerTest {
     private final UUID driver = UUID.randomUUID();
     private final Trip trip = Trip.request(UUID.randomUUID(), 10.7765, 106.7010, 10.7626, 106.6602, Instant.now())
             .assignDriver(driver, Instant.now());
+    private final FailAssignSwitch chaos = new FailAssignSwitch();
     private MockMvc mvc;
 
     @BeforeEach
     void setUp() {
-        mvc = MockMvcBuilders.standaloneSetup(new InternalTripController(commands))
+        mvc = MockMvcBuilders.standaloneSetup(new InternalTripController(commands, chaos))
                 .setControllerAdvice(new TripErrorHandler()).build();
+    }
+
+    @Test
+    void chaosOnMakesAssignFailWithoutTouchingTheTrip() throws Exception {
+        chaos.set(true);
+
+        mvc.perform(post("/internal/trips/" + trip.id() + "/assign-driver").header("Idempotency-Key", "saga-1:assign")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"driverId\":\"" + driver + "\"}"))
+                .andExpect(status().isServiceUnavailable());
+        verify(commands, never()).assignDriver(any(), any(), anyString());
     }
 
     @Test
