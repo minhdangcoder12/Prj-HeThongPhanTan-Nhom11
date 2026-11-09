@@ -45,9 +45,11 @@ public class TripCommands {
         this.inbox = inbox;
     }
 
-    /** A retried request with the same {@code idempotencyKey} gets the first trip back, no second trip. */
+    /** A retried request with the same {@code idempotencyKey} from the same passenger gets the first trip back. */
     public Trip create(UUID passengerId, double pickupLat, double pickupLng, double dropoffLat, double dropoffLng,
-                       String idempotencyKey) {
+                       String clientKey) {
+        // Keys are chosen by clients, so they only identify a request together with who sent it.
+        String idempotencyKey = clientKey == null ? null : passengerId + ":" + clientKey;
         if (idempotencyKey != null) {
             var cached = idempotency.find(idempotencyKey, CREATE);
             if (cached.isPresent()) {
@@ -86,7 +88,8 @@ public class TripCommands {
      * Saga step. Safe to call twice: same key -> cached result; a concurrent call waits on the row lock and then
      * sees the trip already assigned to this driver (no second event). Another driver -> 409.
      */
-    public Trip assignDriver(UUID tripId, UUID driverId, String idempotencyKey) {
+    public Trip assignDriver(UUID tripId, UUID driverId, String clientKey) {
+        String idempotencyKey = tripId + ":" + clientKey; // a key reused on another trip must not turn into a no-op
         if (idempotency.find(idempotencyKey, ASSIGN).isPresent()) {
             return load(tripId);
         }

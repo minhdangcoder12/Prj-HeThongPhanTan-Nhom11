@@ -4,6 +4,7 @@ import com.rideflow.trip.application.TripCommands;
 import com.rideflow.trip.domain.model.Trip;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -33,7 +34,7 @@ class InternalTripController {
     /** Called by the matching saga; retried with the same Idempotency-Key (rule R4), so the key is mandatory. */
     @PostMapping("/{id}/assign-driver")
     Trip assignDriver(@PathVariable UUID id, @Valid @RequestBody AssignDriverRequest req,
-                      @RequestHeader("Idempotency-Key") String idempotencyKey) {
+                      @RequestHeader("Idempotency-Key") @Size(max = TripController.MAX_KEY) String idempotencyKey) {
         if (failAssign.isOn()) {
             // Fails before any change, so every saga retry fails too -> saga must compensate (Flow E).
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Chaos: assign-driver disabled for Flow E demo");

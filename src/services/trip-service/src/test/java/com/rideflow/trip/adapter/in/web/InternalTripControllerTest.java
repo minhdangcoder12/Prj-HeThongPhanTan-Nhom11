@@ -66,6 +66,14 @@ class InternalTripControllerTest {
     }
 
     @Test
+    void tooLongIdempotencyKeyIs400() throws Exception {
+        mvc.perform(post("/internal/trips/" + trip.id() + "/assign-driver").header("Idempotency-Key", "k".repeat(161))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"driverId\":\"" + driver + "\"}"))
+                .andExpect(status().isBadRequest());
+        verify(commands, never()).assignDriver(any(), any(), anyString());
+    }
+
+    @Test
     void missingDriverIdIs400() throws Exception {
         mvc.perform(post("/internal/trips/" + trip.id() + "/assign-driver").header("Idempotency-Key", "k")
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
