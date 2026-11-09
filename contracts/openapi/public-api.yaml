@@ -53,6 +53,21 @@ paths:
   /api/trips/{id}/complete:
     post: { x-phase: 1, summary: "IN_PROGRESS -> COMPLETED, emits trip.completed", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "409": { $ref: "#/components/responses/Problem" } } }
 
+  # Internal (service-to-service, NOT routed by the gateway); listed so callers and providers agree.
+  /internal/trips/{id}/assign-driver:
+    post:
+      x-phase: 1
+      x-internal: true
+      summary: "Matching saga assigns a driver -> DRIVER_ASSIGNED, emits trip.driver-assigned. Same key or same driver again = no-op 200"
+      parameters: [ { $ref: "#/components/parameters/Id" }, { name: Idempotency-Key, in: header, required: true, schema: { type: string } } ]
+      requestBody:
+        content: { application/json: { schema: { type: object, required: [driverId], properties: { driverId: { type: string, format: uuid } } } } }
+      responses:
+        "200": { description: Trip }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { description: "Trip already assigned to another driver, or not waiting for a driver", content: { application/problem+json: { schema: { type: object } } } }
+
   /api/drivers:
     get: { x-phase: 0, summary: All drivers (monitor), responses: { "200": { description: Driver[] } } }
   /api/drivers/{id}/availability:

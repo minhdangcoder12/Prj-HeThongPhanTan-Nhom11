@@ -1,15 +1,19 @@
 package com.rideflow.trip.application;
 
 import com.rideflow.common.event.EventEnvelope;
+import com.rideflow.common.outbox.InboxGuard;
 import com.rideflow.common.outbox.OutboxWriter;
 import com.rideflow.trip.application.port.out.IdempotencyRepository;
 import com.rideflow.trip.application.port.out.TripRepository;
 import com.rideflow.trip.domain.model.Trip;
 import com.rideflow.trip.domain.model.TripStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.function.UnaryOperator;
@@ -20,18 +24,24 @@ import java.util.function.UnaryOperator;
 public class TripCommands {
 
     static final String CREATE = "trip.create";
+    static final String ASSIGN = "trip.assign-driver";
+    static final String NO_DRIVER_CONSUMER = "trip.no-driver";
+    private static final Logger log = LoggerFactory.getLogger(TripCommands.class);
     private static final String PRODUCER = "trip-service";
     private static final String PASSENGER = "PASSENGER";
     private static final String DRIVER = "DRIVER";
+    private static final String SYSTEM = "SYSTEM";
 
     private final TripRepository trips;
     private final IdempotencyRepository idempotency;
     private final OutboxWriter outbox;
+    private final InboxGuard inbox;
 
-    public TripCommands(TripRepository trips, IdempotencyRepository idempotency, OutboxWriter outbox) {
+    public TripCommands(TripRepository trips, IdempotencyRepository idempotency, OutboxWriter outbox, InboxGuard inbox) {
         this.trips = trips;
         this.idempotency = idempotency;
         this.outbox = outbox;
+        this.inbox = inbox;
     }
 
     /** A retried request with the same {@code idempotencyKey} gets the first trip back, no second trip. */
@@ -71,6 +81,40 @@ public class TripCommands {
         return after;
     }
 
+    /**
+     * Saga step. Safe to call twice: same key -> cached result; a concurrent call waits on the row lock and then
+     * sees the trip already assigned to this driver (no second event). Another driver -> 409.
+     */
+    public Trip assignDriver(UUID tripId, UUID driverId, String idempotencyKey) {
+        if (idempotency.find(idempotencyKey, ASSIGN).isPresent()) {
+            return load(tripId);
+        }
+        Trip before = load(tripId);
+        if (before.status() == TripStatus.DRIVER_ASSIGNED && driverId.equals(before.driverId())) {
+            return before;
+        }
+        Trip after = trips.save(before.assignDriver(driverId, Instant.now()));
+        publish(after, before.status(), "trip.driver-assigned", SYSTEM, driverId);
+        idempotency.save(idempotencyKey, ASSIGN, 200, "\"" + tripId + "\"");
+        return after;
+    }
+
+    /** trip.no-driver comes from matching-service; we only record it, re-publishing it would loop back here. */
+    public void markNoDriver(EventEnvelope<Map<String, Object>> event) {
+        if (!inbox.firstTime(event.eventId(), NO_DRIVER_CONSUMER, event.eventType())) {
+            log.info("Duplicate {} {} ignored", event.eventType(), event.eventId());
+            return;
+        }
+        Trip before = load(UUID.fromString(event.aggregateId()));
+        if (!before.status().canMoveTo(TripStatus.NO_DRIVER)) {
+            // Rule R3 out-of-order: a driver was assigned meanwhile; throwing would only retry into the DLQ.
+            log.warn("Ignoring {} for trip {} in status {}", event.eventType(), before.id(), before.status());
+            return;
+        }
+        Trip after = trips.save(before.transitionTo(TripStatus.NO_DRIVER, Instant.now()));
+        trips.recordTransition(after.id(), before.status(), after.status(), SYSTEM, event.correlationId());
+    }
+
     private Trip move(UUID id, String eventType, UnaryOperator<Trip> change) {
         Trip before = load(id);
         Trip after = trips.save(change.apply(before));
@@ -79,7 +123,7 @@ public class TripCommands {
     }
 
     private Trip load(UUID id) {
-        return trips.findById(id).orElseThrow(() -> new NoSuchElementException("Trip " + id + " not found"));
+        return trips.findByIdForUpdate(id).orElseThrow(() -> new NoSuchElementException("Trip " + id + " not found"));
     }
 
     private void publish(Trip trip, TripStatus from, String eventType, String actor, UUID driverId) {

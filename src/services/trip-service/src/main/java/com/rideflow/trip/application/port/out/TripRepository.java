@@ -13,6 +13,9 @@ public interface TripRepository {
 
     Optional<Trip> findById(UUID id);
 
+    /** Same as findById but locks the row until the transaction ends; use before changing a trip. */
+    Optional<Trip> findByIdForUpdate(UUID id);
+
     Trip save(Trip trip);
 
     /** Appends one row to trip_status_history ({@code from} is null for the first status). */

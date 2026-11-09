@@ -16,7 +16,7 @@ channels:
   trip.accepted:               { address: trip.accepted,               x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
   trip.started:                { address: trip.started,                x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
   trip.completed:              { address: trip.completed,              x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
-  trip.no-driver:              { address: trip.no-driver,              x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
+  trip.no-driver:              { address: trip.no-driver,              x-producer: matching-service,     x-phase: 1, description: "Saga found no driver; payload is only { tripId }. trip-service consumes it (queue trip.no-driver.q) and sets NO_DRIVER", messages: { m: { $ref: "#/components/messages/TripEvent" } } }
   trip.driver-rejected:        { address: trip.driver-rejected,        x-producer: trip-service,         x-phase: 4, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
   driver.availability-changed: { address: driver.availability-changed, x-producer: driver-service,       x-phase: 1, messages: { m: { $ref: "#/components/messages/DriverEvent" } } }
   driver.location-updated:     { address: driver.location-updated,     x-producer: driver-service,       x-phase: 1, messages: { m: { $ref: "#/components/messages/DriverEvent" } } }
