@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Domain model: plain Java, no framework (rule R2). Every status change goes through {@link TripStatus#canMoveTo}. */
+/** Domain thuần Java (R2). Mọi lần đổi trạng thái đều qua {@link TripStatus#canMoveTo}. */
 public record Trip(
         UUID id,
         UUID passengerId,
@@ -32,7 +32,7 @@ public record Trip(
         return withStatus(TripStatus.DRIVER_ASSIGNED, driver, now);
     }
 
-    /** Driver said no: the trip goes back to matching and forgets that driver. */
+    /** Tài xế từ chối: chuyến quay lại MATCHING và bỏ tài xế đó. */
     public Trip rejectByDriver(Instant now) {
         return withStatus(TripStatus.MATCHING, null, now);
     }

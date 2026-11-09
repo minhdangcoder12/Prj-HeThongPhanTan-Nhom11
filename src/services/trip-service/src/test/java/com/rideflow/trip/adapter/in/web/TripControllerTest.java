@@ -66,7 +66,7 @@ class TripControllerTest {
 
     @Test
     void tooLongIdempotencyKeyIs400() throws Exception {
-        // Review fix 2: idempotency_key column is VARCHAR(200); an unchecked long header became a 500.
+        // Cột idempotency_key là VARCHAR(200): header dài không được kiểm từng gây lỗi 500.
         mvc.perform(post("/api/trips").header("Idempotency-Key", "k".repeat(161))
                         .contentType(MediaType.APPLICATION_JSON).content(body("\"" + passenger + "\"", "10.7765")))
                 .andExpect(status().isBadRequest());

@@ -3,7 +3,7 @@ package com.rideflow.trip.domain.model;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
-/** Fare in VND: opening price + price per straight-line km, rounded up to the next 1 000. */
+/** Cước (VND) = giá mở cửa + giá mỗi km đường chim bay, làm tròn lên 1.000. */
 public final class Fare {
 
     static final BigDecimal BASE = BigDecimal.valueOf(12_000);
@@ -19,7 +19,7 @@ public final class Fare {
         return raw.divide(ROUND_TO, 0, RoundingMode.CEILING).multiply(ROUND_TO);
     }
 
-    /** Haversine great-circle distance. */
+    /** Khoảng cách đường chim bay (công thức haversine). */
     public static double distanceKm(double fromLat, double fromLng, double toLat, double toLng) {
         double dLat = Math.toRadians(toLat - fromLat);
         double dLng = Math.toRadians(toLng - fromLng);

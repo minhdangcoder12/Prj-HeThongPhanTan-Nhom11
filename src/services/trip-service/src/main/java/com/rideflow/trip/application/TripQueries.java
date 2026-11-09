@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Read use cases; also feed the System Monitor. */
+/** Use case đọc; trang Monitor cũng dùng. */
 @Service
 @Transactional(readOnly = true)
 public class TripQueries {

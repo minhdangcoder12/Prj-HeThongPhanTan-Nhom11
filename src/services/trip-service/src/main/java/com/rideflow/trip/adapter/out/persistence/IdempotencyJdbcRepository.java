@@ -25,7 +25,7 @@ class IdempotencyJdbcRepository implements IdempotencyRepository {
 
     @Override
     public void save(String key, String operation, int statusCode, String body) {
-        // shortcut: plain INSERT, two requests racing on one key -> loser rolls back with 500; add ON CONFLICT + re-read if it matters.
+        // shortcut: INSERT thường, 2 request cùng key cùng lúc thì request thua bị rollback (500); cần thì thêm ON CONFLICT + đọc lại.
         jdbc.update("INSERT INTO idempotency_record (idempotency_key, operation, status_code, response_body) "
                 + "VALUES (?, ?, ?, ?::jsonb)", key, operation, statusCode, body);
     }

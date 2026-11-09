@@ -48,7 +48,7 @@ class TripPersistenceAdapter implements TripRepository {
 
     @Override
     public Trip save(Trip trip) {
-        // Flush now: the JDBC history insert right after this needs the trips row (FK trip_status_history.trip_id).
+        // Flush ngay: lệnh ghi lịch sử bằng JDBC ngay sau đó cần dòng trips đã có (khoá ngoại).
         return jpa.saveAndFlush(TripJpaEntity.fromDomain(trip)).toDomain();
     }
 }

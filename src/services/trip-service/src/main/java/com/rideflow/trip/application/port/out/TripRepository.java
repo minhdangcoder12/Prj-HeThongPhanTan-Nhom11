@@ -13,11 +13,11 @@ public interface TripRepository {
 
     Optional<Trip> findById(UUID id);
 
-    /** Same as findById but locks the row until the transaction ends; use before changing a trip. */
+    /** Như findById nhưng khoá dòng tới hết transaction; dùng trước khi sửa chuyến. */
     Optional<Trip> findByIdForUpdate(UUID id);
 
     Trip save(Trip trip);
 
-    /** Appends one row to trip_status_history ({@code from} is null for the first status). */
+    /** Ghi 1 dòng trip_status_history ({@code from} = null với trạng thái đầu tiên). */
     void recordTransition(UUID tripId, TripStatus from, TripStatus to, String actor, UUID correlationId);
 }

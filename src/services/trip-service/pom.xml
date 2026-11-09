@@ -13,7 +13,7 @@
 
     <dependencies>
         <dependency><groupId>com.rideflow</groupId><artifactId>rideflow-common</artifactId></dependency>
-        <!-- Real Postgres in tests (rule R9); needs Docker running during ./mvnw verify -->
+        <!-- Test trên Postgres thật (R9); cần Docker đang chạy khi ./mvnw verify -->
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-testcontainers</artifactId><scope>test</scope></dependency>
         <dependency><groupId>org.testcontainers</groupId><artifactId>postgresql</artifactId><scope>test</scope></dependency>
         <dependency><groupId>org.testcontainers</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>

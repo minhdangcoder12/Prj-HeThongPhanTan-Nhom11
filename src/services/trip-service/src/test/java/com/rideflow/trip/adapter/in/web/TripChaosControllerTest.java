@@ -41,7 +41,6 @@ class TripChaosControllerTest {
 
     @Test
     void endpointExistsOnlyInDemoProfile() {
-        // Rule R8: chaos endpoints must not exist outside SPRING_PROFILES_ACTIVE=demo.
         assertThat(TripChaosController.class.getAnnotation(Profile.class).value()).containsExactly("demo");
     }
 }

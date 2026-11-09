@@ -7,7 +7,7 @@ import java.util.Set;
 public enum TripStatus {
     REQUESTED, MATCHING, DRIVER_ASSIGNED, ACCEPTED, IN_PROGRESS, COMPLETED, PAYMENT_PENDING, PAID, PAYMENT_FAILED, NO_DRIVER, CANCELLED;
 
-    // Single source of truth for the lifecycle; anything not listed is a 409.
+    // Nơi duy nhất định nghĩa vòng đời; cặp không có ở đây thì trả 409.
     private static final Map<TripStatus, Set<TripStatus>> NEXT = Map.of(
             REQUESTED, EnumSet.of(DRIVER_ASSIGNED, NO_DRIVER),
             MATCHING, EnumSet.of(DRIVER_ASSIGNED, NO_DRIVER),

@@ -47,7 +47,7 @@ class TripCommandsTest {
         Trip withStatus = new Trip(trip.id(), passenger, status == TripStatus.REQUESTED ? null : UUID.randomUUID(),
                 status, trip.pickupLat(), trip.pickupLng(), trip.dropoffLat(), trip.dropoffLng(), trip.fare(),
                 trip.createdAt(), trip.updatedAt());
-        // Commands read with a row lock so two concurrent commands on one trip run one after the other.
+        // Lệnh ghi đọc chuyến kèm khoá dòng.
         when(trips.findByIdForUpdate(withStatus.id())).thenReturn(Optional.of(withStatus));
         return withStatus;
     }
@@ -83,11 +83,11 @@ class TripCommandsTest {
 
     @Test
     void sameKeyFromAnotherPassengerCreatesTheirOwnTrip() {
-        // Review fix 1: keys are client-chosen, so a key is only "the same request" for the same passenger.
+        // Key do client đặt nên chỉ tính là trùng khi cùng hành khách.
         Trip existing = stored(TripStatus.REQUESTED);
         var cached = Optional.of(new IdempotencyRepository.CachedResponse(201, "\"" + existing.id() + "\""));
         when(idempotency.find(passenger + ":k1", TripCommands.CREATE)).thenReturn(cached);
-        when(idempotency.find("k1", TripCommands.CREATE)).thenReturn(cached); // what the unscoped code looked up
+        when(idempotency.find("k1", TripCommands.CREATE)).thenReturn(cached); // key không tiền tố mà code cũ tra
         UUID other = UUID.randomUUID();
 
         Trip trip = commands.create(other, 10.7765, 106.7010, 10.7626, 106.6602, "k1");
@@ -159,7 +159,7 @@ class TripCommandsTest {
         assertThatThrownBy(() -> commands.accept(UUID.randomUUID())).isInstanceOf(NoSuchElementException.class);
     }
 
-    // ---- A2: internal assign-driver, called by the matching saga ----
+    // ---- A2: assign-driver nội bộ (saga gọi) ----
 
     @Test
     void assignDriverEmitsDriverAssignedAndStoresKey() {
@@ -179,9 +179,9 @@ class TripCommandsTest {
 
     @Test
     void keyAlreadyUsedForAnotherTripStillAssignsThisTrip() {
-        // Review fix 1: the key is scoped to the trip, so reuse on another trip is not a silent no-op.
+        // Key gắn với chuyến: dùng lại ở chuyến khác không bị bỏ qua.
         Trip trip = stored(TripStatus.REQUESTED);
-        when(idempotency.find("saga-1:assign", TripCommands.ASSIGN)) // stored unscoped by an older caller / other trip
+        when(idempotency.find("saga-1:assign", TripCommands.ASSIGN)) // lưu không tiền tố (code cũ / chuyến khác)
                 .thenReturn(Optional.of(new IdempotencyRepository.CachedResponse(200, "\"x\"")));
 
         assertThat(commands.assignDriver(trip.id(), UUID.randomUUID(), "saga-1:assign").status())
@@ -203,7 +203,7 @@ class TripCommandsTest {
 
     @Test
     void assignSameDriverAgainIsANoOpEvenWithNewKey() {
-        // The caller that lost the row-lock race sees the winner's result.
+        // Lệnh thua khi tranh khoá dòng thấy kết quả của lệnh thắng.
         Trip trip = stored(TripStatus.DRIVER_ASSIGNED);
 
         Trip result = commands.assignDriver(trip.id(), trip.driverId(), "other-key");
@@ -222,7 +222,7 @@ class TripCommandsTest {
         verify(outbox, never()).append(any());
     }
 
-    // ---- A2: trip.no-driver from matching-service ----
+    // ---- A2: trip.no-driver từ matching ----
 
     private EventEnvelope<Map<String, Object>> noDriver(UUID tripId) {
         return EventEnvelope.of("trip.no-driver", tripId.toString(), "matching-service", null, Map.of("tripId", tripId.toString()));
@@ -238,7 +238,7 @@ class TripCommandsTest {
 
         verify(trips).save(org.mockito.ArgumentMatchers.argThat(t -> t.status() == TripStatus.NO_DRIVER));
         verify(trips).recordTransition(trip.id(), TripStatus.REQUESTED, TripStatus.NO_DRIVER, "SYSTEM", event.correlationId());
-        verify(outbox, never()).append(any()); // re-emitting trip.no-driver would loop back to this queue
+        verify(outbox, never()).append(any()); // phát lại trip.no-driver sẽ quay vòng về chính queue này
     }
 
     @Test
@@ -258,14 +258,14 @@ class TripCommandsTest {
         var event = noDriver(trip.id());
         when(inbox.firstTime(event.eventId(), TripCommands.NO_DRIVER_CONSUMER, "trip.no-driver")).thenReturn(true);
 
-        commands.markNoDriver(event); // rule R3: out-of-order -> WARN and skip, no retry storm
+        commands.markNoDriver(event); // R3: sai thứ tự -> WARN và bỏ qua
 
         verify(trips, never()).save(any());
     }
 
-    // ---- A3: payment.succeeded / payment.failed from payment-service ----
+    // ---- A3: payment.succeeded / payment.failed ----
 
-    /** aggregateId is the paymentId (asyncapi PaymentEnvelope); the trip comes from payload.tripId. */
+    /** aggregateId là paymentId; tripId nằm trong payload. */
     private EventEnvelope<Map<String, Object>> payment(String type, UUID tripId) {
         return EventEnvelope.of(type, UUID.randomUUID().toString(), "payment-service", null,
                 Map.of("tripId", tripId.toString(), "amount", 31000, "status", type.endsWith("succeeded") ? "SUCCEEDED" : "FAILED"));
@@ -305,7 +305,7 @@ class TripCommandsTest {
         var event = payment("payment.succeeded", trip.id());
         firstDelivery(event);
 
-        commands.applyPayment(event); // rule R3 example: payment.succeeded while trip not COMPLETED
+        commands.applyPayment(event); // R3: thanh toán đến khi chuyến chưa COMPLETED
 
         verify(trips, never()).save(any());
     }

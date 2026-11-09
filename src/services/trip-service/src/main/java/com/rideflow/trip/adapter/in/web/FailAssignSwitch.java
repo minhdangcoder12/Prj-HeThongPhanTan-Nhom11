@@ -4,11 +4,11 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Flow E demo fault: when on, internal assign-driver fails. Only TripChaosController (demo profile) can turn it on. */
+/** Lỗi giả cho Flow E: bật thì assign-driver trả 503. Chỉ bật được qua TripChaosController (profile demo). */
 @Component
 class FailAssignSwitch {
 
-    // shortcut: per-instance flag, with several trip-service instances (B9) toggle each one or move it to Redis.
+    // shortcut: cờ riêng từng instance; chạy nhiều trip-service (B9) thì bật từng cái hoặc chuyển sang Redis.
     private final AtomicBoolean on = new AtomicBoolean(false);
 
     boolean isOn() {
