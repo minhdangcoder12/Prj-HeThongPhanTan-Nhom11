@@ -23,6 +23,8 @@
         <archunit.version>1.4.0</archunit.version>
         <!-- Boot 3.3's Byte Buddy cannot instrument classes on JDK 24+, so Mockito fails on newer local JDKs -->
         <byte-buddy.version>1.17.5</byte-buddy.version>
+        <!-- Boot 3.3's Testcontainers 1.19 gets HTTP 400 from Docker Engine 29 (Docker Desktop 4.5x); 1.21.4 negotiates the API -->
+        <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
 
     <modules>
