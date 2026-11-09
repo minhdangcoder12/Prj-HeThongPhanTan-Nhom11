@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# CC2 (concurrency): the matching saga retries POST /internal/trips/{id}/assign-driver. Parallel calls with the
-# same Idempotency-Key, and parallel calls with new keys for the same driver, must assign once and emit ONE
-# trip.driver-assigned. /internal/** is not on the gateway, so this calls trip-service directly (TRIP_URL).
-# Usage: bash tests/e2e/cc2-assign.sh   (stack running)
+# CC2 (đồng thời): saga retry assign-driver. Gọi song song cùng key, hoặc key mới cùng tài xế,
+# phải gán đúng 1 lần và phát 1 event trip.driver-assigned. /internal/** không qua gateway nên gọi thẳng trip-service.
+# Chạy: bash tests/e2e/cc2-assign.sh   (stack đang chạy)
 cd "$(dirname "$0")/../.." || exit 1
 source tests/e2e/lib.sh
 TRIP_URL=${TRIP_URL:-http://localhost:8083}
@@ -14,7 +13,7 @@ http POST /api/trips "{\"passengerId\":\"$PASSENGER\",\"pickup\":{\"lat\":10.776
 check C1 "trip created" "201" "$CODE"
 TRIP=$(json_field id)
 
-assign() { # assign <key> <driver> -> prints HTTP code
+assign() { # assign <key> <driver> -> in mã HTTP
   curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' -H "Idempotency-Key: $1" \
     -d "{\"driverId\":\"$2\"}" "$TRIP_URL/internal/trips/$TRIP/assign-driver"
 }
@@ -28,7 +27,7 @@ check C3 "trip is DRIVER_ASSIGNED to that driver" "DRIVER_ASSIGNED $DRIVER" "$(j
 
 check C4 "another driver is refused" "409" "$(assign "cc2-$TRIP-other" "$OTHER")"
 
-# Count in trip-service's own outbox: independent of how other services word or store their side effects.
+# Đếm trong outbox của trip-service, không phụ thuộc service khác.
 source .env
 EVENTS=$(docker exec rideflow-postgres-1 psql -U "$POSTGRES_USER" -d rideflow_trip -tAc \
   "select count(*) from outbox_event where aggregate_id = '$TRIP' and event_type = 'trip.driver-assigned'")

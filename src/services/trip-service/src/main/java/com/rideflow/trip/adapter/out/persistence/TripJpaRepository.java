@@ -11,7 +11,7 @@ import java.util.UUID;
 
 interface TripJpaRepository extends JpaRepository<TripJpaEntity, UUID> {
 
-    /** SELECT ... FOR UPDATE: concurrent commands on one trip queue up in the database. */
+    /** SELECT ... FOR UPDATE: các lệnh cùng một chuyến phải xếp hàng trong DB. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from TripJpaEntity t where t.id = :id")
     Optional<TripJpaEntity> findForUpdate(@Param("id") UUID id);

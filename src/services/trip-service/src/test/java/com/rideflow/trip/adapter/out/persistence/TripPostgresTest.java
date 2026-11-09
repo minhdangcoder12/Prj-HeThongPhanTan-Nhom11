@@ -25,8 +25,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Runs the use case on a real Postgres with the Flyway schema, so the hand-written SQL (history, idempotency,
- * inbox, FOR UPDATE) and the FK between trips and trip_status_history are exercised by ./mvnw verify.
+ * Chạy use case trên Postgres thật (schema Flyway) để ./mvnw verify kiểm cả SQL viết tay
+ * (lịch sử, idempotency, inbox, FOR UPDATE) và khoá ngoại trips <-> trip_status_history.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -70,11 +70,11 @@ class TripPostgresTest {
         UUID driver = UUID.randomUUID();
         Trip trip = newTrip(passenger, "k1");
 
-        assertThat(newTrip(passenger, "k1").id()).isEqualTo(trip.id());           // same passenger + key -> same trip
-        assertThat(newTrip(UUID.randomUUID(), "k1").id()).isNotEqualTo(trip.id()); // same key, other passenger -> own trip
+        assertThat(newTrip(passenger, "k1").id()).isEqualTo(trip.id());           // cùng hành khách + key -> cùng chuyến
+        assertThat(newTrip(UUID.randomUUID(), "k1").id()).isNotEqualTo(trip.id()); // cùng key, hành khách khác -> chuyến riêng
         commands.assignDriver(trip.id(), driver, "saga-1:assign");
-        commands.assignDriver(trip.id(), driver, "saga-1:assign");               // saga retry, same key
-        commands.assignDriver(trip.id(), driver, "saga-1:assign-again");         // same driver, new key
+        commands.assignDriver(trip.id(), driver, "saga-1:assign");               // saga retry, cùng key
+        commands.assignDriver(trip.id(), driver, "saga-1:assign-again");         // cùng tài xế, key mới
 
         assertThat(jdbc.queryForObject("select status from trips where id = ?", String.class, trip.id()))
                 .isEqualTo("DRIVER_ASSIGNED");
@@ -95,7 +95,7 @@ class TripPostgresTest {
                 "payment-service", null, Map.of("tripId", trip.id().toString()));
 
         commands.applyPayment(paid);
-        commands.applyPayment(paid); // redelivery: inbox row already there
+        commands.applyPayment(paid); // giao lại: inbox đã có dòng này
 
         assertThat(jdbc.queryForObject("select status from trips where id = ?", String.class, trip.id())).isEqualTo("PAID");
         assertThat(count("select count(*) from trip_status_history where trip_id = ? and to_status = 'PAID'", trip.id()))

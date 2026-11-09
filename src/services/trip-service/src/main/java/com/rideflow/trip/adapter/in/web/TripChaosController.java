@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/** Chaos endpoint for Flow E (saga compensation). Exists only with SPRING_PROFILES_ACTIVE=demo (rule R8). */
+/** Chaos cho Flow E; chỉ tồn tại với profile demo (R8). */
 @Profile("demo")
 @RestController
 @RequestMapping("/api/chaos/trip")

@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class TripStatusTest {
 
-    /** The only legal moves; every other pair must be refused. */
+    /** Các bước chuyển hợp lệ duy nhất; mọi cặp khác phải bị từ chối. */
     private static final Set<String> ALLOWED = Set.of(
             "REQUESTED>DRIVER_ASSIGNED", "REQUESTED>NO_DRIVER",
             "MATCHING>DRIVER_ASSIGNED", "MATCHING>NO_DRIVER",

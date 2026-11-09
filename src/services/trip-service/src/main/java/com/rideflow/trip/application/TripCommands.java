@@ -18,7 +18,7 @@ import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.function.UnaryOperator;
 
-/** Write use cases. Status, history row and outbox event commit in ONE transaction (rule R3, no dual write). */
+/** Use case ghi. Trạng thái, lịch sử và event outbox commit trong CÙNG một transaction (R3). */
 @Service
 @Transactional
 public class TripCommands {
@@ -45,10 +45,9 @@ public class TripCommands {
         this.inbox = inbox;
     }
 
-    /** A retried request with the same {@code idempotencyKey} from the same passenger gets the first trip back. */
     public Trip create(UUID passengerId, double pickupLat, double pickupLng, double dropoffLat, double dropoffLng,
                        String clientKey) {
-        // Keys are chosen by clients, so they only identify a request together with who sent it.
+        // Key do client tự đặt, nên chỉ xác định được request khi đi kèm người gửi.
         String idempotencyKey = clientKey == null ? null : passengerId + ":" + clientKey;
         if (idempotencyKey != null) {
             var cached = idempotency.find(idempotencyKey, CREATE);
@@ -76,7 +75,7 @@ public class TripCommands {
         return move(id, "trip.completed", t -> t.transitionTo(TripStatus.COMPLETED, Instant.now()));
     }
 
-    /** matching-service listens to trip.driver-rejected and needs the rejecting driver + pickup to pick the next one. */
+    /** matching cần tài xế vừa từ chối và điểm đón để chọn người khác. */
     public Trip reject(UUID id) {
         Trip before = load(id);
         Trip after = trips.save(before.rejectByDriver(Instant.now()));
@@ -85,11 +84,11 @@ public class TripCommands {
     }
 
     /**
-     * Saga step. Safe to call twice: same key -> cached result; a concurrent call waits on the row lock and then
-     * sees the trip already assigned to this driver (no second event). Another driver -> 409.
+     * Bước của saga, gọi lại an toàn: cùng key trả kết quả cũ; lệnh song song chờ khoá dòng rồi thấy chuyến
+     * đã gán cho tài xế này (không phát event lần 2). Tài xế khác -> 409.
      */
     public Trip assignDriver(UUID tripId, UUID driverId, String clientKey) {
-        String idempotencyKey = tripId + ":" + clientKey; // a key reused on another trip must not turn into a no-op
+        String idempotencyKey = tripId + ":" + clientKey; // gắn với chuyến: key dùng lại ở chuyến khác không bị bỏ qua
         if (idempotency.find(idempotencyKey, ASSIGN).isPresent()) {
             return load(tripId);
         }
@@ -103,18 +102,18 @@ public class TripCommands {
         return after;
     }
 
-    /** trip.no-driver comes from matching-service; we only record it, re-publishing it would loop back here. */
+    /** trip.no-driver do matching phát; chỉ ghi nhận, phát lại sẽ quay vòng về chính queue này. */
     public void markNoDriver(EventEnvelope<Map<String, Object>> event) {
         applyEvent(event, NO_DRIVER_CONSUMER, UUID.fromString(event.aggregateId()), TripStatus.NO_DRIVER);
     }
 
-    /** payment.succeeded -> PAID, payment.failed -> PAYMENT_FAILED. aggregateId is the paymentId, so read payload.tripId. */
+    /** aggregateId là paymentId, nên tripId lấy từ payload. */
     public void applyPayment(EventEnvelope<Map<String, Object>> event) {
         TripStatus target = "payment.succeeded".equals(event.eventType()) ? TripStatus.PAID : TripStatus.PAYMENT_FAILED;
         applyEvent(event, PAYMENT_CONSUMER, UUID.fromString(String.valueOf(event.payload().get("tripId"))), target);
     }
 
-    /** Status change caused by another service's event: inbox dedupe, then state check (rule R3), no event re-published. */
+    /** Đổi trạng thái theo event của service khác: inbox chống trùng, kiểm trạng thái (R3), không phát lại event. */
     private void applyEvent(EventEnvelope<?> event, String consumer, UUID tripId, TripStatus target) {
         if (!inbox.firstTime(event.eventId(), consumer, event.eventType())) {
             log.info("Duplicate {} {} ignored", event.eventType(), event.eventId());
@@ -122,7 +121,7 @@ public class TripCommands {
         }
         Trip before = load(tripId);
         if (!before.status().canMoveTo(target)) {
-            // Out-of-order or late event: throwing would only retry into the DLQ, so WARN and skip.
+            // Event trễ hoặc sai thứ tự: ném lỗi chỉ retry vô ích rồi vào DLQ, nên WARN và bỏ qua.
             log.warn("Ignoring {} for trip {} in status {}", event.eventType(), tripId, before.status());
             return;
         }

@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.NoSuchElementException;
 
-/** Maps domain/application errors to RFC 7807 ProblemDetail (rule R2). */
 @RestControllerAdvice
 class TripErrorHandler {
 

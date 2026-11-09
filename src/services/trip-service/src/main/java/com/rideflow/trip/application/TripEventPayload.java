@@ -6,7 +6,7 @@ import com.rideflow.trip.domain.model.TripStatus;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/** Payload of every trip.* event, shape fixed by TripEnvelope in contracts/asyncapi/asyncapi.yaml. */
+/** Payload của mọi event trip.*, theo TripEnvelope trong contracts/asyncapi/asyncapi.yaml. */
 public record TripEventPayload(UUID tripId, UUID passengerId, UUID driverId, TripStatus status,
                                Point pickup, Point dropoff, BigDecimal fare) {
 

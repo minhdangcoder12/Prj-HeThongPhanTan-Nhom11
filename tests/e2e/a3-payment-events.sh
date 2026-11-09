@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# A3 eval: trip-service applies payment.succeeded / payment.failed only when the trip is COMPLETED (rule R3),
-# ignores duplicates (inbox) and never lets a late failure overwrite PAID. Payment events are injected through
-# the RabbitMQ management API so this runs before payment-service (task C1) exists.
-# Usage: bash tests/e2e/a3-payment-events.sh   (stack running; needs node for JSON)
+# Eval A3: trip-service chỉ áp payment.* khi chuyến đã COMPLETED (R3), bỏ qua event trùng (inbox),
+# payment.failed đến muộn không ghi đè PAID. Event được bơm qua RabbitMQ management API nên chạy được khi chưa có payment-service.
+# Chạy: bash tests/e2e/a3-payment-events.sh   (stack đang chạy, cần node)
 cd "$(dirname "$0")/../.." || exit 1
 source tests/e2e/lib.sh
 source .env
@@ -11,7 +10,7 @@ MQ=${MQ:-http://localhost:15672}
 PASSENGER=bbbbbbbb-0000-4000-8000-000000000001
 DRIVER=00000000-0000-0000-0000-0000000000d3
 
-# publish <eventType> <tripId> [eventId] -> publishes a PaymentEnvelope on rideflow.events
+# publish <eventType> <tripId> [eventId]: phát PaymentEnvelope lên rideflow.events
 publish() {
   local body
   body=$(node -e '
@@ -32,7 +31,7 @@ TRIP=$(json_field id)
 publish payment.succeeded "$TRIP"; sleep 2
 check P1 "payment.succeeded before COMPLETED is ignored" "REQUESTED" "$(status_of "$TRIP")"
 
-# Drive the trip to COMPLETED (assign via internal API, as the saga would).
+# Đưa chuyến tới COMPLETED (assign qua API nội bộ như saga).
 curl -s -o /dev/null -X POST -H 'Content-Type: application/json' -H "Idempotency-Key: a3-$TRIP" \
   -d "{\"driverId\":\"$DRIVER\"}" "$TRIP_URL/internal/trips/$TRIP/assign-driver"
 for action in accept start complete; do http POST "/api/trips/$TRIP/$action"; done

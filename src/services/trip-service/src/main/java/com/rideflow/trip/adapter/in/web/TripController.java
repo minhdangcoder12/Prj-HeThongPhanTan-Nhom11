@@ -26,7 +26,7 @@ import java.util.UUID;
 @RequestMapping("/api/trips")
 class TripController {
 
-    /** idempotency_key is VARCHAR(200); the use case prefixes the client key with a 36-char UUID + ':'. */
+    /** Cột idempotency_key là VARCHAR(200); use case thêm tiền tố UUID 36 ký tự + ':'. */
     static final int MAX_KEY = 160;
 
     record Point(@NotNull @DecimalMin("-90") @DecimalMax("90") Double lat,

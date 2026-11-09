@@ -16,7 +16,7 @@ import org.springframework.http.HttpStatus;
 
 import java.util.UUID;
 
-/** Service-to-service API. The gateway never routes /internal/** (rule R1). */
+/** API nội bộ giữa các service; gateway không route /internal/** (R1). */
 @RestController
 @RequestMapping("/internal/trips")
 class InternalTripController {
@@ -31,12 +31,12 @@ class InternalTripController {
         this.failAssign = failAssign;
     }
 
-    /** Called by the matching saga; retried with the same Idempotency-Key (rule R4), so the key is mandatory. */
+    /** Saga gọi và retry với cùng Idempotency-Key (R4), nên key là bắt buộc. */
     @PostMapping("/{id}/assign-driver")
     Trip assignDriver(@PathVariable UUID id, @Valid @RequestBody AssignDriverRequest req,
                       @RequestHeader("Idempotency-Key") @Size(max = TripController.MAX_KEY) String idempotencyKey) {
         if (failAssign.isOn()) {
-            // Fails before any change, so every saga retry fails too -> saga must compensate (Flow E).
+            // Lỗi trước khi đổi gì nên mọi lần retry đều lỗi -> saga phải bù trừ (Flow E).
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Chaos: assign-driver disabled for Flow E demo");
         }
         return commands.assignDriver(id, req.driverId(), idempotencyKey);

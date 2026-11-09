@@ -11,7 +11,7 @@ class FareTest {
 
     @Test
     void haversineDistanceInDistrictOne() {
-        // Ben Thanh -> District 5, about 4.7 km straight line
+        // Bến Thành -> Quận 5, khoảng 4,7 km đường chim bay
         assertThat(Fare.distanceKm(10.7765, 106.7010, 10.7626, 106.6602)).isCloseTo(4.72, within(0.05));
     }
 

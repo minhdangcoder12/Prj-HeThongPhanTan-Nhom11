@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
-/** matching-service gave up finding a driver; inbox + state check live in the use case. */
 @Component
 class NoDriverListener {
 

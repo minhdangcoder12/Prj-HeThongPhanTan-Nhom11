@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
-/** payment.succeeded / payment.failed -> PAID / PAYMENT_FAILED; inbox + state check live in the use case. */
 @Component
 class PaymentEventListener {
 
