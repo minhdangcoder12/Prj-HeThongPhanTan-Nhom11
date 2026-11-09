@@ -26,6 +26,7 @@ public class TripCommands {
     static final String CREATE = "trip.create";
     static final String ASSIGN = "trip.assign-driver";
     static final String NO_DRIVER_CONSUMER = "trip.no-driver";
+    static final String PAYMENT_CONSUMER = "trip.payment-events";
     private static final Logger log = LoggerFactory.getLogger(TripCommands.class);
     private static final String PRODUCER = "trip-service";
     private static final String PASSENGER = "PASSENGER";
@@ -101,18 +102,29 @@ public class TripCommands {
 
     /** trip.no-driver comes from matching-service; we only record it, re-publishing it would loop back here. */
     public void markNoDriver(EventEnvelope<Map<String, Object>> event) {
-        if (!inbox.firstTime(event.eventId(), NO_DRIVER_CONSUMER, event.eventType())) {
+        applyEvent(event, NO_DRIVER_CONSUMER, UUID.fromString(event.aggregateId()), TripStatus.NO_DRIVER);
+    }
+
+    /** payment.succeeded -> PAID, payment.failed -> PAYMENT_FAILED. aggregateId is the paymentId, so read payload.tripId. */
+    public void applyPayment(EventEnvelope<Map<String, Object>> event) {
+        TripStatus target = "payment.succeeded".equals(event.eventType()) ? TripStatus.PAID : TripStatus.PAYMENT_FAILED;
+        applyEvent(event, PAYMENT_CONSUMER, UUID.fromString(String.valueOf(event.payload().get("tripId"))), target);
+    }
+
+    /** Status change caused by another service's event: inbox dedupe, then state check (rule R3), no event re-published. */
+    private void applyEvent(EventEnvelope<?> event, String consumer, UUID tripId, TripStatus target) {
+        if (!inbox.firstTime(event.eventId(), consumer, event.eventType())) {
             log.info("Duplicate {} {} ignored", event.eventType(), event.eventId());
             return;
         }
-        Trip before = load(UUID.fromString(event.aggregateId()));
-        if (!before.status().canMoveTo(TripStatus.NO_DRIVER)) {
-            // Rule R3 out-of-order: a driver was assigned meanwhile; throwing would only retry into the DLQ.
-            log.warn("Ignoring {} for trip {} in status {}", event.eventType(), before.id(), before.status());
+        Trip before = load(tripId);
+        if (!before.status().canMoveTo(target)) {
+            // Out-of-order or late event: throwing would only retry into the DLQ, so WARN and skip.
+            log.warn("Ignoring {} for trip {} in status {}", event.eventType(), tripId, before.status());
             return;
         }
-        Trip after = trips.save(before.transitionTo(TripStatus.NO_DRIVER, Instant.now()));
-        trips.recordTransition(after.id(), before.status(), after.status(), SYSTEM, event.correlationId());
+        trips.save(before.transitionTo(target, Instant.now()));
+        trips.recordTransition(tripId, before.status(), target, SYSTEM, event.correlationId());
     }
 
     private Trip move(UUID id, String eventType, UnaryOperator<Trip> change) {

@@ -238,4 +238,73 @@ class TripCommandsTest {
 
         verify(trips, never()).save(any());
     }
+
+    // ---- A3: payment.succeeded / payment.failed from payment-service ----
+
+    /** aggregateId is the paymentId (asyncapi PaymentEnvelope); the trip comes from payload.tripId. */
+    private EventEnvelope<Map<String, Object>> payment(String type, UUID tripId) {
+        return EventEnvelope.of(type, UUID.randomUUID().toString(), "payment-service", null,
+                Map.of("tripId", tripId.toString(), "amount", 31000, "status", type.endsWith("succeeded") ? "SUCCEEDED" : "FAILED"));
+    }
+
+    private void firstDelivery(EventEnvelope<?> event) {
+        when(inbox.firstTime(event.eventId(), TripCommands.PAYMENT_CONSUMER, event.eventType())).thenReturn(true);
+    }
+
+    @Test
+    void paymentSucceededMarksCompletedTripPaid() {
+        Trip trip = stored(TripStatus.COMPLETED);
+        var event = payment("payment.succeeded", trip.id());
+        firstDelivery(event);
+
+        commands.applyPayment(event);
+
+        verify(trips).save(org.mockito.ArgumentMatchers.argThat(t -> t.status() == TripStatus.PAID));
+        verify(trips).recordTransition(trip.id(), TripStatus.COMPLETED, TripStatus.PAID, "SYSTEM", event.correlationId());
+        verify(outbox, never()).append(any());
+    }
+
+    @Test
+    void paymentFailedMarksTripPaymentFailed() {
+        Trip trip = stored(TripStatus.COMPLETED);
+        var event = payment("payment.failed", trip.id());
+        firstDelivery(event);
+
+        commands.applyPayment(event);
+
+        verify(trips).save(org.mockito.ArgumentMatchers.argThat(t -> t.status() == TripStatus.PAYMENT_FAILED));
+    }
+
+    @Test
+    void paymentBeforeTripCompletedIsSkipped() {
+        Trip trip = stored(TripStatus.IN_PROGRESS);
+        var event = payment("payment.succeeded", trip.id());
+        firstDelivery(event);
+
+        commands.applyPayment(event); // rule R3 example: payment.succeeded while trip not COMPLETED
+
+        verify(trips, never()).save(any());
+    }
+
+    @Test
+    void lateFailureAfterPaidDoesNotOverwrite() {
+        Trip trip = stored(TripStatus.PAID);
+        var event = payment("payment.failed", trip.id());
+        firstDelivery(event);
+
+        commands.applyPayment(event);
+
+        verify(trips, never()).save(any());
+    }
+
+    @Test
+    void duplicatePaymentEventIsIgnored() {
+        Trip trip = stored(TripStatus.COMPLETED);
+        var event = payment("payment.succeeded", trip.id());
+        when(inbox.firstTime(event.eventId(), TripCommands.PAYMENT_CONSUMER, event.eventType())).thenReturn(false);
+
+        commands.applyPayment(event);
+
+        verify(trips, never()).save(any());
+    }
 }
