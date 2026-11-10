@@ -29,4 +29,8 @@ public class MatchingSagaQueries {
     public Optional<MatchingSaga> byId(UUID id) {
         return repository.findById(id);
     }
+
+    public Optional<MatchingSaga> byTripId(UUID tripId) {
+        return repository.findByTripId(tripId);
+    }
 }

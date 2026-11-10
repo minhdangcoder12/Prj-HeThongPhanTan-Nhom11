@@ -1,5 +1,6 @@
 package com.rideflow.matching.application.port.out;
 
+import com.rideflow.matching.domain.model.MatchingAttempt;
 import com.rideflow.matching.domain.model.MatchingSaga;
 
 import java.util.List;
@@ -12,5 +13,11 @@ public interface MatchingSagaRepository {
 
     Optional<MatchingSaga> findById(UUID id);
 
+    Optional<MatchingSaga> findByTripId(UUID tripId);
+
     MatchingSaga save(MatchingSaga matchingSaga);
+
+    void recordAttempt(MatchingAttempt attempt);
+
+    List<MatchingAttempt> findAttemptsBySagaId(UUID sagaId);
 }
