@@ -30,6 +30,7 @@ class MatchingSagaController {
     @GetMapping("/{id}")
     MatchingSaga byId(@PathVariable UUID id) {
         return queries.byId(id)
+                .or(() -> queries.byTripId(id))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "MatchingSaga " + id + " not found"));
     }
 }
