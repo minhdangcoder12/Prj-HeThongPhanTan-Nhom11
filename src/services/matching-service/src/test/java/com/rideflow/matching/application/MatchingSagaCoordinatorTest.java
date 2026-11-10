@@ -154,4 +154,19 @@ class MatchingSagaCoordinatorTest {
         // Verify attempts recorded (1 for reject, 1 for new driver reserved)
         verify(repository, times(2)).recordAttempt(any(MatchingAttempt.class));
     }
+
+    @Test
+    void multiInstanceCompetingConsumer_returnsExistingTerminalSagaWithoutDuplicateProcessing() {
+        MatchingSaga existingCompletedSaga = new MatchingSaga(UUID.randomUUID(), tripId, driverId,
+                SagaStatus.COMPLETED, "COMPLETED", 1, null, Instant.now().minusSeconds(10), Instant.now());
+
+        when(repository.findByTripId(tripId)).thenReturn(Optional.of(existingCompletedSaga));
+
+        MatchingSaga result = coordinator.startOrResumeSaga(tripId, 10.7769, 106.7009, causationId);
+
+        assertThat(result).isSameAs(existingCompletedSaga);
+        verify(driverServiceClient, times(0)).reserve(any(), any(), any());
+        verify(tripServiceClient, times(0)).assignDriver(any(), any(), any());
+        verify(outbox, times(0)).append(any());
+    }
 }

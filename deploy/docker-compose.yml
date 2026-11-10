@@ -68,25 +68,25 @@ services:
   user-service:
     <<: *service
     build: { context: .., dockerfile: deploy/Dockerfile, args: { SERVICE: user-service } }
-    ports: ["8081:8081"]
+    expose: ["8081"]
     environment: *infra-env
 
   driver-service:
     <<: *service
     build: { context: .., dockerfile: deploy/Dockerfile, args: { SERVICE: driver-service } }
-    ports: ["8082:8082"]
+    expose: ["8082"]
     environment: *infra-env
 
   trip-service:
     <<: *service
     build: { context: .., dockerfile: deploy/Dockerfile, args: { SERVICE: trip-service } }
-    ports: ["8083:8083"]
+    expose: ["8083"]
     environment: *infra-env
 
   matching-service:
     <<: *service
     build: { context: .., dockerfile: deploy/Dockerfile, args: { SERVICE: matching-service } }
-    ports: ["8084:8084"]
+    expose: ["8084"]
     environment: *infra-env
     depends_on:
       postgres: { condition: service_healthy }
@@ -96,13 +96,13 @@ services:
   payment-service:
     <<: *service
     build: { context: .., dockerfile: deploy/Dockerfile, args: { SERVICE: payment-service } }
-    ports: ["8085:8085"]
+    expose: ["8085"]
     environment: *infra-env
 
   notification-service:
     <<: *service
     build: { context: .., dockerfile: deploy/Dockerfile, args: { SERVICE: notification-service } }
-    ports: ["8086:8086"]
+    expose: ["8086"]
     environment: *infra-env
 
 networks:
