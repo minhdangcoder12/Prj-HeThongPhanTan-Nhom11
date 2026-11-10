@@ -34,3 +34,4 @@ class NotificationChaosSwitchTest {
         assertThat(chaos.getFailRate()).isEqualTo(1.0);
     }
 }
+

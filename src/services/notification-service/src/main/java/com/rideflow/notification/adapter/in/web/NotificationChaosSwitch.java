@@ -28,3 +28,4 @@ public class NotificationChaosSwitch implements NotificationChaosPort {
         return rate > 0.0 && ThreadLocalRandom.current().nextDouble() < rate;
     }
 }
+

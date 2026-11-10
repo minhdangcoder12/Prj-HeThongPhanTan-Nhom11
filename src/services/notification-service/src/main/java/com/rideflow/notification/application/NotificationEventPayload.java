@@ -12,3 +12,4 @@ public record NotificationEventPayload(
         String eventType,
         NotificationStatus status) {
 }
+

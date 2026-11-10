@@ -48,3 +48,4 @@ class NotificationChaosController {
         return Map.of("rate", chaosSwitch.getFailRate());
     }
 }
+
