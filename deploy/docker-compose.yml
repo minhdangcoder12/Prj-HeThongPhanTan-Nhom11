@@ -13,6 +13,8 @@ x-infra-env: &infra-env
   POSTGRES_HOST: postgres
   RABBITMQ_HOST: rabbitmq
   REDIS_HOST: redis
+  JAEGER_HOST: jaeger
+  MANAGEMENT_OTLP_TRACING_ENDPOINT: http://jaeger:4318/v1/traces
 
 services:
   postgres:
@@ -105,6 +107,53 @@ services:
     ports: ["8086:8086"]
     environment: *infra-env
 
+  # C8: Distributed tracing (Jaeger all-in-one with OTLP receiver)
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # Web UI
+      - "4318:4318"   # OTLP HTTP
+      - "4317:4317"   # OTLP gRPC
+    networks: [rideflow]
+
+  # C9: Centralized logging (Loki + Promtail + Grafana dashboard)
+  loki:
+    image: grafana/loki:3.0.0
+    profiles: ["observability"]
+    ports: ["3100:3100"]
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./observability/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    networks: [rideflow]
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    profiles: ["observability"]
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./observability/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [rideflow]
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    profiles: ["observability"]
+    ports: ["3000:3000"]
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - loki
+      - jaeger
+    networks: [rideflow]
+
 networks:
   rideflow:
     name: rideflow
@@ -112,3 +161,7 @@ networks:
 volumes:
   pgdata:
     name: rideflow_pgdata
+  loki_data:
+    name: rideflow_loki_data
+  grafana_data:
+    name: rideflow_grafana_data

@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: 'RideFlow Dashboards'
+    orgId: 1
+    folder: 'RideFlow'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards

@@ -13,8 +13,11 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+    template:
+      observation-enabled: true
     listener:
       simple:
+        observation-enabled: true
         # Bounded retry 2s -> 5s -> 10s, then reject without requeue: message goes to <queue>.dlq.
         # shortcut: in-listener retry blocks the consumer thread during backoff; move to TTL retry queues if throughput matters.
         default-requeue-rejected: false
@@ -28,6 +31,12 @@ spring:
     problemdetails:
       enabled: true
 management:
+  tracing:
+    sampling:
+      probability: ${TRACING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://${JAEGER_HOST:localhost}:4318/v1/traces}
   endpoints:
     web:
       exposure:
@@ -37,4 +46,4 @@ management:
       show-details: always
 logging:
   pattern:
-    level: "%5p [${spring.application.name:-},%X{correlationId:-}]"
+    level: "%5p [${spring.application.name:-},%X{traceId:-},%X{spanId:-},%X{correlationId:-}]"
