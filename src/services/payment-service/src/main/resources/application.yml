@@ -7,3 +7,6 @@ spring:
     import: classpath:rideflow-common.yml
 rideflow:
   db: rideflow_payment
+  payment:
+    failure-rate: ${PAYMENT_FAILURE_RATE:0.0}
+
