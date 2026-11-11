@@ -18,3 +18,4 @@ datasources:
     uid: jaeger
     access: proxy
     url: http://jaeger:16686
+
