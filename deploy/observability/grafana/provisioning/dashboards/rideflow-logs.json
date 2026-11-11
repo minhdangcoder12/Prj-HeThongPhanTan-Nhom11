@@ -1,0 +1,57 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 20, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "RideFlow Centralized Logs (Loki)",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "{container=~\"rideflow-.*\"} |= \"$filter\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending"
+      }
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": ["rideflow", "observability"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "value": "" },
+        "name": "filter",
+        "label": "Filter (correlationId / traceId / text)",
+        "type": "textbox",
+        "query": ""
+      }
+    ]
+  },
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {
+    "refresh_intervals": ["5s", "10s", "30s", "1m"]
+  },
+  "timezone": "browser",
+  "title": "RideFlow Centralized Logs",
+  "uid": "rideflow-central-logs",
+  "version": 1
+}
+
