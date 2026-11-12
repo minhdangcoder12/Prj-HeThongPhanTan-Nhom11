@@ -189,6 +189,14 @@ bash tests/e2e/flow-restart.sh                     # tắt payment giữa luồn
 | 6 | Event trùng → xử lý 1 lần (Flow D) | Nút "replay" trên một event | C |
 | 7 | Gán tài xế lỗi → Saga compensation (Flow E) | "Bật lỗi assign" rồi đặt xe | A + B |
 
+### Tài khoản demo & Flow A bằng UI
+
+Dữ liệu seed (không phải secret), mật khẩu chung `demo1234`: khách `passenger1@rideflow.demo`, `passenger2@rideflow.demo`; tài xế `driver1@rideflow.demo` … `driver3@rideflow.demo` (liên kết D01–D03). Cần `JWT_SECRET` ≥ 32 ký tự trong `.env`.
+
+1. Passenger panel → Đăng nhập (đã điền sẵn passenger1) → Đặt xe; panel hiện trạng thái, cước.
+2. Driver panel → Đăng nhập (driver1) → Bật Online (và cập nhật GPS) trước khi khách đặt xe.
+3. Khi chuyến ở `DRIVER_ASSIGNED`: Driver panel bấm Accept → Start → Complete; xem PAID và notification trên Monitor.
+
 ## Phân công
 
 Chi tiết từng task, điểm độ khó và ma trận test: [`docs/plan/team-split.md`](docs/plan/team-split.md).
