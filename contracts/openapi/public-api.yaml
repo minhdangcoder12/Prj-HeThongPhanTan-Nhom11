@@ -29,7 +29,7 @@ paths:
       responses: { "200": { description: Trip[] } }
     post:
       x-phase: 1
-      summary: "Passenger requests a trip -> REQUESTED, emits trip.created. fare (VND) = 12000 + 4000/km haversine, rounded up to 1000. Same Idempotency-Key returns the first trip"
+      summary: "Passenger requests a trip -> REQUESTED, emits trip.created. fare (VND) = (12000 + 4000/km haversine) x surgeMultiplier, rounded up to 1000. Trip JSON has surgeMultiplier (1.00-2.00 = waiting trips / available drivers within 3 km of pickup; 1.00 if the supply lookup fails). Same Idempotency-Key returns the first trip"
       parameters: [ { $ref: "#/components/parameters/IdempotencyKey" } ]
       requestBody:
         content: { application/json: { schema: { $ref: "#/components/schemas/CreateTrip" } } }

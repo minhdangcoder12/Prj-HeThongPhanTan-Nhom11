@@ -15,13 +15,16 @@ public record Trip(
         Double dropoffLat,
         Double dropoffLng,
         BigDecimal fare,
+        BigDecimal surgeMultiplier,
         Instant createdAt,
         Instant updatedAt) {
 
     public static Trip request(UUID passengerId, double pickupLat, double pickupLng,
-                               double dropoffLat, double dropoffLng, Instant now) {
+                               double dropoffLat, double dropoffLng, BigDecimal surgeMultiplier, Instant now) {
         return new Trip(UUID.randomUUID(), passengerId, null, TripStatus.REQUESTED, pickupLat, pickupLng,
-                dropoffLat, dropoffLng, Fare.estimate(pickupLat, pickupLng, dropoffLat, dropoffLng), now, now);
+                dropoffLat, dropoffLng,
+                Fare.withSurge(Fare.estimate(pickupLat, pickupLng, dropoffLat, dropoffLng), surgeMultiplier),
+                surgeMultiplier, now, now);
     }
 
     public Trip transitionTo(TripStatus next, Instant now) {
@@ -41,6 +44,6 @@ public record Trip(
         if (!status.canMoveTo(next)) {
             throw new InvalidTripTransitionException(status, next);
         }
-        return new Trip(id, passengerId, driver, next, pickupLat, pickupLng, dropoffLat, dropoffLng, fare, createdAt, now);
+        return new Trip(id, passengerId, driver, next, pickupLat, pickupLng, dropoffLat, dropoffLng, fare, surgeMultiplier, createdAt, now);
     }
 }

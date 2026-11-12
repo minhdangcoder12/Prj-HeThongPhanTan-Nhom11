@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -25,7 +26,7 @@ class InternalTripControllerTest {
 
     private final TripCommands commands = mock(TripCommands.class);
     private final UUID driver = UUID.randomUUID();
-    private final Trip trip = Trip.request(UUID.randomUUID(), 10.7765, 106.7010, 10.7626, 106.6602, Instant.now())
+    private final Trip trip = Trip.request(UUID.randomUUID(), 10.7765, 106.7010, 10.7626, 106.6602, BigDecimal.ONE, Instant.now())
             .assignDriver(driver, Instant.now());
     private final FailAssignSwitch chaos = new FailAssignSwitch();
     private MockMvc mvc;

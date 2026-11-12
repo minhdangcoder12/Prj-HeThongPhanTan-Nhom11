@@ -18,6 +18,9 @@ public interface TripRepository {
 
     Trip save(Trip trip);
 
+    /** Số chuyến đang chờ ghép tài xế (REQUESTED, MATCHING) có điểm đón trong bán kính. */
+    int countWaitingNear(double lat, double lng, double radiusKm);
+
     /** Ghi 1 dòng trip_status_history ({@code from} = null với trạng thái đầu tiên). */
     void recordTransition(UUID tripId, TripStatus from, TripStatus to, String actor, UUID correlationId);
 }

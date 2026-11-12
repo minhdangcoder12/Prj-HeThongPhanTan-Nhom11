@@ -16,7 +16,7 @@ class TripTest {
     private final UUID driver = UUID.randomUUID();
 
     private Trip requested() {
-        return Trip.request(passenger, 10.7765, 106.7010, 10.7626, 106.6602, now);
+        return Trip.request(passenger, 10.7765, 106.7010, 10.7626, 106.6602, BigDecimal.ONE, now);
     }
 
     @Test

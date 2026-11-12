@@ -3,8 +3,10 @@ package com.rideflow.trip.application;
 import com.rideflow.common.event.EventEnvelope;
 import com.rideflow.common.outbox.InboxGuard;
 import com.rideflow.common.outbox.OutboxWriter;
+import com.rideflow.trip.application.port.out.DriverSupply;
 import com.rideflow.trip.application.port.out.IdempotencyRepository;
 import com.rideflow.trip.application.port.out.TripRepository;
+import com.rideflow.trip.domain.model.SurgePricing;
 import com.rideflow.trip.domain.model.Trip;
 import com.rideflow.trip.domain.model.TripStatus;
 import org.slf4j.Logger;
@@ -12,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -28,6 +31,7 @@ public class TripCommands {
     static final String NO_DRIVER_CONSUMER = "trip.no-driver";
     static final String PAYMENT_CONSUMER = "trip.payment-events";
     private static final Logger log = LoggerFactory.getLogger(TripCommands.class);
+    private static final double SURGE_RADIUS_KM = 3;
     private static final String PRODUCER = "trip-service";
     private static final String PASSENGER = "PASSENGER";
     private static final String DRIVER = "DRIVER";
@@ -37,12 +41,15 @@ public class TripCommands {
     private final IdempotencyRepository idempotency;
     private final OutboxWriter outbox;
     private final InboxGuard inbox;
+    private final DriverSupply supply;
 
-    public TripCommands(TripRepository trips, IdempotencyRepository idempotency, OutboxWriter outbox, InboxGuard inbox) {
+    public TripCommands(TripRepository trips, IdempotencyRepository idempotency, OutboxWriter outbox, InboxGuard inbox,
+                        DriverSupply supply) {
         this.trips = trips;
         this.idempotency = idempotency;
         this.outbox = outbox;
         this.inbox = inbox;
+        this.supply = supply;
     }
 
     public Trip create(UUID passengerId, double pickupLat, double pickupLng, double dropoffLat, double dropoffLng,
@@ -55,12 +62,24 @@ public class TripCommands {
                 return load(UUID.fromString(cached.get().body().replace("\"", "")));
             }
         }
-        Trip trip = trips.save(Trip.request(passengerId, pickupLat, pickupLng, dropoffLat, dropoffLng, Instant.now()));
+        Trip trip = trips.save(Trip.request(passengerId, pickupLat, pickupLng, dropoffLat, dropoffLng,
+                surgeAt(pickupLat, pickupLng), Instant.now()));
         publish(trip, null, "trip.created", PASSENGER, null);
         if (idempotencyKey != null) {
             idempotency.save(idempotencyKey, CREATE, 201, "\"" + trip.id() + "\"");
         }
         return trip;
+    }
+
+    /** Giá không được làm hỏng việc đặt xe: không hỏi được supply thì không tăng giá. */
+    private BigDecimal surgeAt(double lat, double lng) {
+        int waiting = trips.countWaitingNear(lat, lng, SURGE_RADIUS_KM) + 1; // +1 là chuyến đang đặt
+        try {
+            return SurgePricing.multiplier(waiting, supply.availableDrivers(lat, lng, SURGE_RADIUS_KM));
+        } catch (RuntimeException e) {
+            log.warn("Driver supply unavailable, surge multiplier 1.0: {}", e.getMessage());
+            return SurgePricing.NONE;
+        }
     }
 
     public Trip accept(UUID id) {

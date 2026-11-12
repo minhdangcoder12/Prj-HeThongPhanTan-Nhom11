@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -30,7 +31,7 @@ class TripControllerTest {
     private final TripQueries queries = mock(TripQueries.class);
     private final TripCommands commands = mock(TripCommands.class);
     private final UUID passenger = UUID.randomUUID();
-    private final Trip trip = Trip.request(passenger, 10.7765, 106.7010, 10.7626, 106.6602, Instant.now());
+    private final Trip trip = Trip.request(passenger, 10.7765, 106.7010, 10.7626, 106.6602, BigDecimal.ONE, Instant.now());
     private MockMvc mvc;
 
     @BeforeEach

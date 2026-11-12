@@ -3,6 +3,7 @@ package com.rideflow.trip.application;
 import com.rideflow.common.event.EventEnvelope;
 import com.rideflow.common.outbox.InboxGuard;
 import com.rideflow.common.outbox.OutboxWriter;
+import com.rideflow.trip.application.port.out.DriverSupply;
 import com.rideflow.trip.application.port.out.IdempotencyRepository;
 import com.rideflow.trip.application.port.out.TripRepository;
 import com.rideflow.trip.domain.model.InvalidTripTransitionException;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -21,6 +23,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -34,7 +37,8 @@ class TripCommandsTest {
     private final IdempotencyRepository idempotency = mock(IdempotencyRepository.class);
     private final OutboxWriter outbox = mock(OutboxWriter.class);
     private final InboxGuard inbox = mock(InboxGuard.class);
-    private final TripCommands commands = new TripCommands(trips, idempotency, outbox, inbox);
+    private final DriverSupply supply = mock(DriverSupply.class);
+    private final TripCommands commands = new TripCommands(trips, idempotency, outbox, inbox, supply);
     private final UUID passenger = UUID.randomUUID();
 
     @BeforeEach
@@ -43,9 +47,9 @@ class TripCommandsTest {
     }
 
     private Trip stored(TripStatus status) {
-        Trip trip = Trip.request(passenger, 10.7765, 106.7010, 10.7626, 106.6602, Instant.now());
+        Trip trip = Trip.request(passenger, 10.7765, 106.7010, 10.7626, 106.6602, BigDecimal.ONE, Instant.now());
         Trip withStatus = new Trip(trip.id(), passenger, status == TripStatus.REQUESTED ? null : UUID.randomUUID(),
-                status, trip.pickupLat(), trip.pickupLng(), trip.dropoffLat(), trip.dropoffLng(), trip.fare(),
+                status, trip.pickupLat(), trip.pickupLng(), trip.dropoffLat(), trip.dropoffLng(), trip.fare(), trip.surgeMultiplier(),
                 trip.createdAt(), trip.updatedAt());
         // Lệnh ghi đọc chuyến kèm khoá dòng.
         when(trips.findByIdForUpdate(withStatus.id())).thenReturn(Optional.of(withStatus));
@@ -72,6 +76,28 @@ class TripCommandsTest {
         assertThat(event.payload().pickup().lat()).isEqualTo(10.7765);
         assertThat(event.payload().fare()).isEqualByComparingTo(trip.fare());
         verify(trips).recordTransition(trip.id(), null, TripStatus.REQUESTED, "PASSENGER", event.correlationId());
+    }
+
+    @Test
+    void createPricesSurgeFromWaitingTripsAndNearbyDrivers() {
+        when(trips.countWaitingNear(10.7765, 106.7010, 3)).thenReturn(2); // + chuyến mới = 3 chờ
+        when(supply.availableDrivers(10.7765, 106.7010, 3)).thenReturn(2);
+
+        Trip trip = commands.create(passenger, 10.7765, 106.7010, 10.7626, 106.6602, null);
+
+        assertThat(trip.surgeMultiplier()).isEqualByComparingTo("1.50");
+        assertThat(trip.fare()).isEqualByComparingTo("47000"); // 31000 * 1.5 = 46500 -> 47000
+        assertThat(appendedEvent().payload().surgeMultiplier()).isEqualByComparingTo("1.50");
+    }
+
+    @Test
+    void createKeepsNormalPriceWhenSupplyCallFails() {
+        when(supply.availableDrivers(anyDouble(), anyDouble(), anyDouble())).thenThrow(new IllegalStateException("down"));
+
+        Trip trip = commands.create(passenger, 10.7765, 106.7010, 10.7626, 106.6602, null);
+
+        assertThat(trip.surgeMultiplier()).isEqualByComparingTo("1.00");
+        assertThat(trip.fare()).isEqualByComparingTo("31000");
     }
 
     @Test

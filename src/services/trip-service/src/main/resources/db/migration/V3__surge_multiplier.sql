@@ -1,0 +1,1 @@
+ALTER TABLE trips ADD COLUMN surge_multiplier NUMERIC(3,2) NOT NULL DEFAULT 1.00;
