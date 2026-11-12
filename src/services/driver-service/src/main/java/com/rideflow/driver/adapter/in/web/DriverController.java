@@ -42,19 +42,24 @@ class DriverController {
     }
 
     /** Gateway gắn X-User-Role từ JWT; service vẫn kiểm lại role ở endpoint ghi (R8). */
-    private static void requireDriver(String role) {
+    /** Role DRIVER chưa đủ: X-Driver-Id (từ JWT) phải là chính tài xế trên đường dẫn. */
+    private static void requireDriver(String role, UUID self, UUID target) {
         if (role == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing X-User-Role");
         }
         if (!"DRIVER".equals(role)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Requires role DRIVER");
         }
+        if (!target.equals(self)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Drivers can only change their own profile");
+        }
     }
 
     @PutMapping("/{id}/availability")
     Driver updateAvailability(@PathVariable UUID id, @Valid @RequestBody UpdateAvailabilityRequest request,
-                              @RequestHeader(name = "X-User-Role", required = false) String role) {
-        requireDriver(role);
+                              @RequestHeader(name = "X-User-Role", required = false) String role,
+                              @RequestHeader(name = "X-Driver-Id", required = false) UUID driverId) {
+        requireDriver(role, driverId, id);
         try {
             return commands.updateAvailability(id, request.available());
         } catch (NoSuchElementException notFound) {
@@ -66,8 +71,9 @@ class DriverController {
 
     @PutMapping("/{id}/location")
     Driver updateLocation(@PathVariable UUID id, @Valid @RequestBody UpdateLocationRequest request,
-                          @RequestHeader(name = "X-User-Role", required = false) String role) {
-        requireDriver(role);
+                          @RequestHeader(name = "X-User-Role", required = false) String role,
+                              @RequestHeader(name = "X-Driver-Id", required = false) UUID driverId) {
+        requireDriver(role, driverId, id);
         try {
             return commands.updateLocation(id, request.lat(), request.lng());
         } catch (NoSuchElementException notFound) {
