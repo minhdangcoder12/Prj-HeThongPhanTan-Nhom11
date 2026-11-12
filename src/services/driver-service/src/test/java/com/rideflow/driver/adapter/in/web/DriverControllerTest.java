@@ -47,6 +47,7 @@ class DriverControllerTest {
         when(commands.updateAvailability(eq(driverId), eq(true))).thenReturn(driver);
 
         mockMvc.perform(put("/api/drivers/" + driverId + "/availability")
+                        .header("X-User-Role", "DRIVER")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"available\": true}"))
                 .andExpect(status().isOk())
@@ -60,6 +61,7 @@ class DriverControllerTest {
                 .thenThrow(new NoSuchElementException("Driver not found"));
 
         mockMvc.perform(put("/api/drivers/" + driverId + "/availability")
+                        .header("X-User-Role", "DRIVER")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"available\": true}"))
                 .andExpect(status().isNotFound());
@@ -71,6 +73,7 @@ class DriverControllerTest {
                 .thenThrow(new IllegalStateException("Cannot change availability"));
 
         mockMvc.perform(put("/api/drivers/" + driverId + "/availability")
+                        .header("X-User-Role", "DRIVER")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"available\": false}"))
                 .andExpect(status().isConflict());
@@ -81,6 +84,7 @@ class DriverControllerTest {
         when(commands.updateLocation(eq(driverId), eq(10.7769), eq(106.7009))).thenReturn(driver);
 
         mockMvc.perform(put("/api/drivers/" + driverId + "/location")
+                        .header("X-User-Role", "DRIVER")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"lat\": 10.7769, \"lng\": 106.7009}"))
                 .andExpect(status().isOk())
@@ -94,8 +98,19 @@ class DriverControllerTest {
                 .thenThrow(new NoSuchElementException("Driver not found"));
 
         mockMvc.perform(put("/api/drivers/" + driverId + "/location")
+                        .header("X-User-Role", "DRIVER")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"lat\": 10.7769, \"lng\": 106.7009}"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void writesRequireDriverRole() throws Exception {
+        mockMvc.perform(put("/api/drivers/" + driverId + "/availability")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"available\": true}"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(put("/api/drivers/" + driverId + "/location").header("X-User-Role", "PASSENGER")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"lat\": 10.7769, \"lng\": 106.7009}"))
+                .andExpect(status().isForbidden());
     }
 }

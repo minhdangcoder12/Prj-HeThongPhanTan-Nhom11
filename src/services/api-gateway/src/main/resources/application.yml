@@ -38,6 +38,8 @@ spring:
           uri: ${rideflow.services.notification}
           predicates: [ "Path=/api/notifications/**" ]
 rideflow:
+  jwt:
+    secret: ${JWT_SECRET}
   services:
     user: http://localhost:8081
     driver: http://localhost:8082
