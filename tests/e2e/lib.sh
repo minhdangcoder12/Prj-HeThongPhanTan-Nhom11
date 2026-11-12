@@ -26,6 +26,16 @@ http() {
   BODY=${out%$'\n'*}
 }
 
+# login <email> <password>: đăng nhập, đặt TOKEN và AUTH để http() gửi Bearer token từ đó trở đi
+login() {
+  http POST /api/auth/login "{\"email\":\"$1\",\"password\":\"$2\"}"
+  TOKEN=$(json_field token)
+  AUTH=(-H "Authorization: Bearer $TOKEN")
+}
+# Tài khoản seed (user-service V3__seed_users.sql), mật khẩu chung demo1234
+as_passenger() { login "passenger${1:-1}@rideflow.demo" demo1234; }
+as_driver() { login "driver${1:-1}@rideflow.demo" demo1234; }
+
 # json_field <field>: first string/number value of "field" in $BODY (flat lookup, good enough for evals)
 json_field() {
   printf '%s' "$BODY" | grep -o "\"$1\":\"\?[^\",}]*" | head -1 | sed -E "s/\"$1\":\"?//"

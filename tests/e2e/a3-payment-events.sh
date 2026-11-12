@@ -7,7 +7,6 @@ source tests/e2e/lib.sh
 source .env
 TRIP_URL=${TRIP_URL:-http://localhost:8083}
 MQ=${MQ:-http://localhost:15672}
-PASSENGER=bbbbbbbb-0000-4000-8000-000000000001
 DRIVER=00000000-0000-0000-0000-0000000000d3
 
 # publish <eventType> <tripId> [eventId]: phát PaymentEnvelope lên rideflow.events
@@ -25,7 +24,8 @@ publish() {
 }
 status_of() { http GET "/api/trips/$1"; json_field status; }
 
-http POST /api/trips "{\"passengerId\":\"$PASSENGER\",\"pickup\":{\"lat\":10.7765,\"lng\":106.7010},\"dropoff\":{\"lat\":10.7626,\"lng\":106.6602}}"
+as_passenger
+http POST /api/trips "{\"pickup\":{\"lat\":10.7765,\"lng\":106.7010},\"dropoff\":{\"lat\":10.7626,\"lng\":106.6602}}"
 TRIP=$(json_field id)
 
 publish payment.succeeded "$TRIP"; sleep 2
@@ -34,6 +34,7 @@ check P1 "payment.succeeded before COMPLETED is ignored" "REQUESTED" "$(status_o
 # Đưa chuyến tới COMPLETED (assign qua API nội bộ như saga).
 curl -s -o /dev/null -X POST -H 'Content-Type: application/json' -H "Idempotency-Key: a3-$TRIP" \
   -d "{\"driverId\":\"$DRIVER\"}" "$TRIP_URL/internal/trips/$TRIP/assign-driver"
+as_driver
 for action in accept start complete; do http POST "/api/trips/$TRIP/$action"; done
 check P2 "trip reached COMPLETED" "COMPLETED" "$(status_of "$TRIP")"
 

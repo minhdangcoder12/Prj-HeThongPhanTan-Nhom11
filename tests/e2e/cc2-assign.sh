@@ -5,11 +5,11 @@
 cd "$(dirname "$0")/../.." || exit 1
 source tests/e2e/lib.sh
 TRIP_URL=${TRIP_URL:-http://localhost:8083}
-PASSENGER=bbbbbbbb-0000-4000-8000-000000000001
 DRIVER=00000000-0000-0000-0000-0000000000d2
 OTHER=00000000-0000-0000-0000-0000000000d3
 
-http POST /api/trips "{\"passengerId\":\"$PASSENGER\",\"pickup\":{\"lat\":10.7765,\"lng\":106.7010},\"dropoff\":{\"lat\":10.7626,\"lng\":106.6602}}"
+as_passenger
+http POST /api/trips "{\"pickup\":{\"lat\":10.7765,\"lng\":106.7010},\"dropoff\":{\"lat\":10.7626,\"lng\":106.6602}}"
 check C1 "trip created" "201" "$CODE"
 TRIP=$(json_field id)
 
