@@ -7,3 +7,5 @@ spring:
     import: classpath:rideflow-common.yml
 rideflow:
   db: rideflow_user
+  jwt:
+    secret: ${JWT_SECRET}

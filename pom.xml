@@ -21,6 +21,7 @@
         <java.version>21</java.version>
         <spring-cloud.version>2023.0.3</spring-cloud.version>
         <archunit.version>1.4.0</archunit.version>
+        <jjwt.version>0.12.6</jjwt.version>
         <!-- Byte Buddy của Boot 3.3 không chạy trên JDK 24+, làm Mockito lỗi -->
         <byte-buddy.version>1.17.5</byte-buddy.version>
         <!-- Testcontainers 1.19 của Boot 3.3 bị Docker Engine 29 trả lỗi 400; 1.21.4 đã sửa -->
