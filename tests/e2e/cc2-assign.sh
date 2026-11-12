@@ -17,8 +17,16 @@ assign() { # assign <key> <driver> -> in mã HTTP
   internal "/internal/trips/$TRIP/assign-driver" "$1" "{\"driverId\":\"$2\"}"
 }
 
-CODES=$( { for i in 1 2 3 4 5; do assign "cc2-$TRIP" "$DRIVER" & done;
-           for i in 1 2 3 4 5; do assign "cc2-$TRIP-$i" "$DRIVER" & done; wait; } | sort | uniq -c | tr -s ' ' | xargs)
+# 10 request song song trong MỘT docker exec: song song thật ở service, và Windows không phải mở 10 docker.exe.
+URL=http://localhost:8083/internal/trips/$TRIP/assign-driver
+BODY="{\"driverId\":\"$DRIVER\"}"
+CODES=$(docker exec rideflow-trip-service-1 sh -c "
+  for i in 1 2 3 4 5; do
+    curl -s -o /dev/null -w '%{http_code}
+' -X POST -H 'Content-Type: application/json' -H 'Idempotency-Key: cc2-$TRIP' -d '$BODY' $URL &
+    curl -s -o /dev/null -w '%{http_code}
+' -X POST -H 'Content-Type: application/json' -H \"Idempotency-Key: cc2-$TRIP-\$i\" -d '$BODY' $URL &
+  done; wait" | sort | uniq -c | tr -s ' ' | xargs)
 check C2 "10 parallel assigns (same driver) all 200" "10 200" "$CODES"
 
 http GET "/api/trips/$TRIP"
