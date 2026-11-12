@@ -137,20 +137,22 @@ class TripCommandsTest {
 
     @Test
     void acceptEmitsTripAccepted() {
-        assertThat(commands.accept(stored(TripStatus.DRIVER_ASSIGNED).id()).status()).isEqualTo(TripStatus.ACCEPTED);
+        Trip trip = stored(TripStatus.DRIVER_ASSIGNED);
+        assertThat(commands.accept(trip.id(), trip.driverId()).status()).isEqualTo(TripStatus.ACCEPTED);
         assertThat(appendedEvent().eventType()).isEqualTo("trip.accepted");
     }
 
     @Test
     void startEmitsTripStarted() {
-        commands.start(stored(TripStatus.ACCEPTED).id());
+        Trip trip = stored(TripStatus.ACCEPTED);
+        commands.start(trip.id(), trip.driverId());
         assertThat(appendedEvent().eventType()).isEqualTo("trip.started");
     }
 
     @Test
     void completeEmitsTripCompletedAndRecordsHistory() {
         Trip trip = stored(TripStatus.IN_PROGRESS);
-        commands.complete(trip.id());
+        commands.complete(trip.id(), trip.driverId());
         EventEnvelope<TripEventPayload> event = appendedEvent();
         assertThat(event.eventType()).isEqualTo("trip.completed");
         verify(trips).recordTransition(eq(trip.id()), eq(TripStatus.IN_PROGRESS), eq(TripStatus.COMPLETED),
@@ -161,7 +163,7 @@ class TripCommandsTest {
     void rejectSendsRejectingDriverAndPickupToMatching() {
         Trip trip = stored(TripStatus.DRIVER_ASSIGNED);
 
-        Trip rejected = commands.reject(trip.id());
+        Trip rejected = commands.reject(trip.id(), trip.driverId());
 
         assertThat(rejected.status()).isEqualTo(TripStatus.MATCHING);
         EventEnvelope<TripEventPayload> event = appendedEvent();
@@ -172,9 +174,9 @@ class TripCommandsTest {
 
     @Test
     void wrongStatusIsRefusedWithoutSideEffects() {
-        UUID id = stored(TripStatus.REQUESTED).id();
+        Trip trip = stored(TripStatus.DRIVER_ASSIGNED);
 
-        assertThatThrownBy(() -> commands.start(id)).isInstanceOf(InvalidTripTransitionException.class);
+        assertThatThrownBy(() -> commands.start(trip.id(), trip.driverId())).isInstanceOf(InvalidTripTransitionException.class);
         verify(trips, never()).save(any());
         verify(outbox, never()).append(any());
         verify(trips, never()).recordTransition(any(), any(), any(), anyString(), any());
@@ -182,7 +184,18 @@ class TripCommandsTest {
 
     @Test
     void unknownTripIsNotFound() {
-        assertThatThrownBy(() -> commands.accept(UUID.randomUUID())).isInstanceOf(NoSuchElementException.class);
+        assertThatThrownBy(() -> commands.accept(UUID.randomUUID(), UUID.randomUUID())).isInstanceOf(NoSuchElementException.class);
+    }
+
+    @Test
+    void anotherDriverCannotActOnTheTrip() {
+        // Review bảo mật: role DRIVER chưa đủ, phải đúng tài xế của chuyến.
+        Trip trip = stored(TripStatus.DRIVER_ASSIGNED);
+
+        assertThatThrownBy(() -> commands.accept(trip.id(), UUID.randomUUID())).isInstanceOf(NotTripDriverException.class);
+        assertThatThrownBy(() -> commands.reject(trip.id(), null)).isInstanceOf(NotTripDriverException.class);
+        verify(trips, never()).save(any());
+        verify(outbox, never()).append(any());
     }
 
     // ---- A2: assign-driver nội bộ (saga gọi) ----

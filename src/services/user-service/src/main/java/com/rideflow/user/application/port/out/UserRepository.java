@@ -1,6 +1,7 @@
 package com.rideflow.user.application.port.out;
 
 import com.rideflow.user.domain.model.User;
+import com.rideflow.user.domain.model.UserCredential;
 
 import java.util.List;
 import java.util.Optional;
@@ -12,5 +13,9 @@ public interface UserRepository {
 
     Optional<User> findById(UUID id);
 
-    User save(User user);
+    Optional<UserCredential> findCredentialByEmail(String email);
+
+    boolean existsByEmail(String email);
+
+    User save(User user, String passwordHash);
 }

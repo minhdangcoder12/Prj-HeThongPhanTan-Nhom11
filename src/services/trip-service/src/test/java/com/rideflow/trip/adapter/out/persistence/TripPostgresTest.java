@@ -117,10 +117,11 @@ class TripPostgresTest {
     @Test
     void duplicatePaymentEventIsAppliedOnce() {
         Trip trip = newTrip(UUID.randomUUID(), null);
-        commands.assignDriver(trip.id(), UUID.randomUUID(), "k");
-        commands.accept(trip.id());
-        commands.start(trip.id());
-        commands.complete(trip.id());
+        UUID driver = UUID.randomUUID();
+        commands.assignDriver(trip.id(), driver, "k");
+        commands.accept(trip.id(), driver);
+        commands.start(trip.id(), driver);
+        commands.complete(trip.id(), driver);
         var paid = EventEnvelope.<Map<String, Object>>of("payment.succeeded", UUID.randomUUID().toString(),
                 "payment-service", null, Map.of("tripId", trip.id().toString()));
 

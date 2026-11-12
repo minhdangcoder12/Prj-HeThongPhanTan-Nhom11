@@ -52,6 +52,8 @@ spring:
           uri: ${rideflow.services.notification}
           predicates: [ "Path=/api/notifications/**" ]
 rideflow:
+  jwt:
+    secret: ${JWT_SECRET}
   services:
     # lb:// qua Consul; chạy không Consul thì ghi đè bằng RIDEFLOW_SERVICES_<TÊN>=http://host:port.
     user: lb://user-service

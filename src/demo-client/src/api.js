@@ -1,10 +1,14 @@
 // Single entry point for HTTP (rule R7): every call carries a fresh X-Correlation-Id
 // so the action can be traced on the System Monitor event stream.
-export async function api(method, path, body) {
+export async function api(method, path, body, token) {
   const correlationId = crypto.randomUUID();
   const res = await fetch(path, {
     method,
-    headers: { "Content-Type": "application/json", "X-Correlation-Id": correlationId },
+    headers: {
+      "Content-Type": "application/json",
+      "X-Correlation-Id": correlationId,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const text = await res.text();

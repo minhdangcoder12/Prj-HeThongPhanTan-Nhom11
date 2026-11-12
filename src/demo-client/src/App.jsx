@@ -6,6 +6,8 @@ import Chaos from "./Chaos.jsx";
 import Monitor from "./Monitor.jsx";
 
 export default function App() {
+  const [passenger, setPassenger] = useState(null);
+  const [driver, setDriver] = useState(null);
   const [health, setHealth] = useState({});
   useEffect(() => poll("/api/monitor/health", setHealth, 3000), []);
 
@@ -25,9 +27,9 @@ export default function App() {
       </header>
       <main>
         <section className="controls">
-          <Passenger />
-          <Driver />
-          <Chaos />
+          <Passenger session={passenger} onSession={setPassenger} />
+          <Driver session={driver} onSession={setDriver} />
+          <Chaos token={passenger?.token} />
         </section>
         <Monitor />
       </main>

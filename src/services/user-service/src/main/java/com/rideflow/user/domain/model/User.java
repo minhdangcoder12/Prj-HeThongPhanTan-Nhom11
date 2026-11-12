@@ -9,5 +9,6 @@ public record User(
         String email,
         String fullName,
         Role role,
+        UUID driverId,
         Instant createdAt) {
 }
