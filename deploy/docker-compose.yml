@@ -87,7 +87,11 @@ services:
     <<: *service
     build: { context: .., dockerfile: deploy/Dockerfile, args: { SERVICE: matching-service } }
     expose: ["8084"]
-    environment: *infra-env
+    environment:
+      <<: *infra-env
+      # Trong container, localhost là chính nó: phải gọi theo tên service trong mạng Docker.
+      RIDEFLOW_SERVICES_DRIVER: http://driver-service:8082
+      RIDEFLOW_SERVICES_TRIP: http://trip-service:8083
     depends_on:
       postgres: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }

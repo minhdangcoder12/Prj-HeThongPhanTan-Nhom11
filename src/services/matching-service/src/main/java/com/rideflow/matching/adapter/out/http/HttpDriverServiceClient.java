@@ -6,6 +6,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -28,6 +29,7 @@ public class HttpDriverServiceClient implements DriverServiceClient {
         this(driverServiceUrl, CircuitBreakerRegistry.ofDefaults());
     }
 
+    @Autowired // 2 constructor: Spring phải được chỉ rõ dùng cái nhận CircuitBreakerRegistry
     public HttpDriverServiceClient(
             @Value("${rideflow.services.driver:http://localhost:8082}") String driverServiceUrl,
             CircuitBreakerRegistry circuitBreakerRegistry) {
