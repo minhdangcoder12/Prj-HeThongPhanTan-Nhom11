@@ -68,5 +68,8 @@ internal() {
 # without_matching: dừng matching-service tới hết script để saga không tự xử lý chuyến của bài test.
 without_matching() {
   bash scripts/fault.sh stop matching-service >/dev/null 2>&1
+  if [ -n "$(docker ps -q --filter name=rideflow-matching-service --filter status=running)" ]; then
+    echo "cannot stop matching-service, eval would race the real saga" >&2; exit 1
+  fi
   trap 'bash scripts/fault.sh start matching-service >/dev/null 2>&1' EXIT
 }
