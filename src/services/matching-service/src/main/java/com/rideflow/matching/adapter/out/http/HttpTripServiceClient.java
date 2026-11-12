@@ -6,6 +6,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -28,6 +29,7 @@ public class HttpTripServiceClient implements TripServiceClient {
         this(tripServiceUrl, CircuitBreakerRegistry.ofDefaults());
     }
 
+    @Autowired // 2 constructor: Spring phải được chỉ rõ dùng cái nhận CircuitBreakerRegistry
     public HttpTripServiceClient(
             @Value("${rideflow.services.trip:http://localhost:8083}") String tripServiceUrl,
             CircuitBreakerRegistry circuitBreakerRegistry) {
