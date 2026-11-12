@@ -2,22 +2,21 @@ import { useState } from "react";
 import { api } from "./api.js";
 import { Result } from "./App.jsx";
 
-const trip = (passengerId) => ({
-  passengerId,
+const trip = () => ({
   pickup: { lat: 10.7769, lng: 106.7009 },
   dropoff: { lat: 10.7626, lng: 106.6602 },
 });
 
 // Demo-only triggers for flows B-E. Chaos endpoints exist only with SPRING_PROFILES_ACTIVE=demo.
-export default function Chaos() {
+export default function Chaos({ token }) {
   const [result, setResult] = useState(null);
   const [rate, setRate] = useState("1");
-  const run = async (method, path, body) => setResult(await api(method, path, body));
+  const run = async (method, path, body) => setResult(await api(method, path, body, token));
 
   async function flowB() {
     const [a, b] = await Promise.all([
-      api("POST", "/api/trips", trip(crypto.randomUUID())),
-      api("POST", "/api/trips", trip(crypto.randomUUID())),
+      api("POST", "/api/trips", trip(), token),
+      api("POST", "/api/trips", trip(), token),
     ]);
     setResult({
       ok: a.ok && b.ok,
@@ -30,6 +29,7 @@ export default function Chaos() {
   return (
     <div className="panel">
       <h2>Kịch bản demo</h2>
+      {!token && <p className="hint">Cần đăng nhập ở Passenger trước (ghi/chaos đều cần token).</p>}
       <div className="row">
         <button onClick={() => run("POST", "/api/monitor/test-event")}>Gửi event test</button>
         <button onClick={flowB}>Flow B: 2 khách cùng lúc</button>

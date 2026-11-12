@@ -9,6 +9,20 @@ spring:
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
   cloud:
+    consul:
+      # Tắt mặc định để ./mvnw verify và chạy local không cần Consul; compose bật bằng CONSUL_ENABLED=true.
+      enabled: ${CONSUL_ENABLED:false}
+      host: ${CONSUL_HOST:localhost}
+      discovery:
+        # instance-id duy nhất để scale nhiều instance cùng một service (scripts/scale.sh).
+        instance-id: ${spring.application.name}-${random.uuid}
+        prefer-ip-address: true
+        health-check-path: /actuator/health
+        health-check-interval: 10s
+        # Instance critical quá 30s thì Consul tự gỡ đăng ký.
+        health-check-critical-timeout: 30s
+        # Chỉ trả instance đang passing.
+        query-passing: true
     gateway:
       # Gateway and the downstream CorrelationIdFilter both set the header; keep one.
       default-filters:
@@ -38,13 +52,16 @@ spring:
           uri: ${rideflow.services.notification}
           predicates: [ "Path=/api/notifications/**" ]
 rideflow:
+  jwt:
+    secret: ${JWT_SECRET}
   services:
-    user: http://localhost:8081
-    driver: http://localhost:8082
-    trip: http://localhost:8083
-    matching: http://localhost:8084
-    payment: http://localhost:8085
-    notification: http://localhost:8086
+    # lb:// qua Consul; chạy không Consul thì ghi đè bằng RIDEFLOW_SERVICES_<TÊN>=http://host:port.
+    user: lb://user-service
+    driver: lb://driver-service
+    trip: lb://trip-service
+    matching: lb://matching-service
+    payment: lb://payment-service
+    notification: lb://notification-service
 management:
   endpoints:
     web:

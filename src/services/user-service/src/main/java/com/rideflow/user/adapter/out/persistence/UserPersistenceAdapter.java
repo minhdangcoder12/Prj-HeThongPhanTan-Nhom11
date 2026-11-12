@@ -2,6 +2,7 @@ package com.rideflow.user.adapter.out.persistence;
 
 import com.rideflow.user.application.port.out.UserRepository;
 import com.rideflow.user.domain.model.User;
+import com.rideflow.user.domain.model.UserCredential;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
@@ -31,7 +32,17 @@ class UserPersistenceAdapter implements UserRepository {
     }
 
     @Override
-    public User save(User user) {
-        return jpa.save(UserJpaEntity.fromDomain(user)).toDomain();
+    public Optional<UserCredential> findCredentialByEmail(String email) {
+        return jpa.findByEmail(email).map(UserJpaEntity::toCredential);
+    }
+
+    @Override
+    public boolean existsByEmail(String email) {
+        return jpa.existsByEmail(email);
+    }
+
+    @Override
+    public User save(User user, String passwordHash) {
+        return jpa.save(UserJpaEntity.fromDomain(user, passwordHash)).toDomain();
     }
 }

@@ -42,6 +42,9 @@ class TripJpaEntity {
 
     private BigDecimal fare;
 
+    @Column(name = "surge_multiplier")
+    private BigDecimal surgeMultiplier;
+
     @Column(name = "created_at")
     private Instant createdAt;
 
@@ -62,12 +65,14 @@ class TripJpaEntity {
         e.dropoffLat = trip.dropoffLat();
         e.dropoffLng = trip.dropoffLng();
         e.fare = trip.fare();
+        e.surgeMultiplier = trip.surgeMultiplier();
         e.createdAt = trip.createdAt();
         e.updatedAt = trip.updatedAt();
         return e;
     }
 
     Trip toDomain() {
-        return new Trip(id, passengerId, driverId, status, pickupLat, pickupLng, dropoffLat, dropoffLng, fare, createdAt, updatedAt);
+        return new Trip(id, passengerId, driverId, status, pickupLat, pickupLng, dropoffLat, dropoffLng, fare, surgeMultiplier,
+                createdAt, updatedAt);
     }
 }

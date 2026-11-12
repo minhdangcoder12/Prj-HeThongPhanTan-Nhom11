@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, poll } from "./api.js";
 import { Result } from "./App.jsx";
+import Login from "./Login.jsx";
 
 const PRESET_LOCATIONS = [
   { label: "Bến Thành (Q1)", lat: "10.7769", lng: "106.7009" },
@@ -8,7 +9,7 @@ const PRESET_LOCATIONS = [
   { label: "Sân bay TSN (TB)", lat: "10.8185", lng: "106.6588" },
 ];
 
-export default function Driver() {
+export default function Driver({ session, onSession }) {
   const [drivers, setDrivers] = useState([]);
   const [driverId, setDriverId] = useState("");
   const [loc, setLoc] = useState({ lat: "10.7769", lng: "106.7009" });
@@ -17,6 +18,8 @@ export default function Driver() {
   const [result, setResult] = useState(null);
 
   useEffect(() => poll("/api/drivers", setDrivers), []);
+  // Đăng nhập tài xế thì tự chọn đúng hồ sơ driver của tài khoản đó
+  useEffect(() => { if (session?.driverId) setDriverId(session.driverId); }, [session?.driverId]);
   const list = Array.isArray(drivers) ? drivers : [];
   const me = list.find((d) => d.id === driverId);
 
@@ -35,12 +38,13 @@ export default function Driver() {
     setTrip(null);
   }, [tripId]);
 
-  const run = async (method, path, body) => setResult(await api(method, path, body));
+  const run = async (method, path, body) => setResult(await api(method, path, body, session?.token));
   const availability = (available) => run("PUT", `/api/drivers/${driverId}/availability`, { available });
 
   return (
     <div className="panel">
       <h2>Driver Panel</h2>
+      <Login defaultEmail="driver1@rideflow.demo" session={session} onSession={onSession} />
       <select value={driverId} onChange={(e) => setDriverId(e.target.value)}>
         <option value="">-- chọn tài xế --</option>
         {list.map((d) => (

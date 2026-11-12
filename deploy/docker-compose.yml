@@ -7,12 +7,15 @@ x-service: &service
   depends_on:
     postgres: { condition: service_healthy }
     rabbitmq: { condition: service_healthy }
+    consul: { condition: service_healthy }
   networks: [rideflow]
 
 x-infra-env: &infra-env
   POSTGRES_HOST: postgres
   RABBITMQ_HOST: rabbitmq
   REDIS_HOST: redis
+  CONSUL_ENABLED: "true"
+  CONSUL_HOST: consul
 
 services:
   postgres:
@@ -43,6 +46,16 @@ services:
       retries: 10
     networks: [rideflow]
 
+  consul:
+    image: hashicorp/consul:1.19
+    command: agent -dev -client=0.0.0.0
+    ports: ["8500:8500"]
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 5s
+      retries: 10
+    networks: [rideflow]
+
   redis:
     image: redis:7.2-alpine
     ports: ["6379:6379"]
@@ -58,12 +71,6 @@ services:
     ports: ["8080:8080"]
     environment:
       <<: *infra-env
-      RIDEFLOW_SERVICES_USER: http://user-service:8081
-      RIDEFLOW_SERVICES_DRIVER: http://driver-service:8082
-      RIDEFLOW_SERVICES_TRIP: http://trip-service:8083
-      RIDEFLOW_SERVICES_MATCHING: http://matching-service:8084
-      RIDEFLOW_SERVICES_PAYMENT: http://payment-service:8085
-      RIDEFLOW_SERVICES_NOTIFICATION: http://notification-service:8086
 
   user-service:
     <<: *service
@@ -96,6 +103,7 @@ services:
       postgres: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
       redis: { condition: service_healthy }
+      consul: { condition: service_healthy }
 
   payment-service:
     <<: *service

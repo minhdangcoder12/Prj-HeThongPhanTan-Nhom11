@@ -1,12 +1,12 @@
 package com.rideflow.gateway.monitor;
 
 import com.rideflow.gateway.RideflowServices;
+import org.springframework.cloud.client.discovery.ReactiveDiscoveryClient;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -20,12 +20,12 @@ class MonitorController {
 
     private final EventTap tap;
     private final RideflowServices services;
-    private final WebClient http;
+    private final ReactiveDiscoveryClient discovery;
 
-    MonitorController(EventTap tap, RideflowServices services, WebClient.Builder http) {
+    MonitorController(EventTap tap, RideflowServices services, ReactiveDiscoveryClient discovery) {
         this.tap = tap;
         this.services = services;
-        this.http = http.build();
+        this.discovery = discovery;
     }
 
     /** Live event feed for the System Monitor (history replayed first). */
@@ -38,15 +38,14 @@ class MonitorController {
         return Flux.merge(data, heartbeat);
     }
 
-    /** UP/DOWN of every service, so the demo shows what is running (e.g. Flow C stops notification). */
+    /** UP when Consul has at least one passing instance (query-passing), else DOWN; e.g. Flow C stops notification. */
     @GetMapping("/health")
     Mono<Map<String, String>> health() {
         return Flux.fromIterable(services.services().entrySet())
-                .flatMap(s -> http.get().uri(s.getValue() + "/actuator/health").retrieve().bodyToMono(Map.class)
-                        .map(body -> String.valueOf(body.get("status")))
+                .flatMap(s -> discovery.getInstances(s.getKey() + "-service").hasElements()
                         .timeout(Duration.ofSeconds(2))
-                        .onErrorReturn("DOWN")
-                        .map(status -> Map.entry(s.getKey(), status)))
+                        .onErrorReturn(false)
+                        .map(up -> Map.entry(s.getKey(), up ? "UP" : "DOWN")))
                 .collectMap(Map.Entry::getKey, Map.Entry::getValue, TreeMap::new);
     }
 }

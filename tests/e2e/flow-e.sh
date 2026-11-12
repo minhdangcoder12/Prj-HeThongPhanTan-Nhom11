@@ -5,7 +5,6 @@
 cd "$(dirname "$0")/../.." || exit 1
 source tests/e2e/lib.sh
 D01=00000000-0000-0000-0000-0000000000d1
-PASSENGER=bbbbbbbb-0000-4000-8000-000000000001
 
 step() { # step <id> <description> <expected> <actual>
   check "$@"
@@ -16,6 +15,7 @@ step() { # step <id> <description> <expected> <actual>
 }
 
 # E1: Make sure driver D01 is available
+as_driver
 http PUT "/api/drivers/$D01/availability" '{"available":true}'
 step E1 "driver D01 goes AVAILABLE" "200" "$CODE"
 
@@ -28,7 +28,8 @@ http PUT "/api/chaos/trip/fail-assign" '{"enabled":true}'
 step E3 "enable fail-assign fault" "200" "$CODE"
 
 # E4: Passenger requests a trip
-http POST /api/trips "{\"passengerId\":\"$PASSENGER\",\"pickup\":{\"lat\":10.7765,\"lng\":106.7010},\"dropoff\":{\"lat\":10.7626,\"lng\":106.6602}}"
+as_passenger
+http POST /api/trips "{\"pickup\":{\"lat\":10.7765,\"lng\":106.7010},\"dropoff\":{\"lat\":10.7626,\"lng\":106.6602}}"
 step E4 "passenger requests trip" "201" "$CODE"
 TRIP=$(json_field id)
 

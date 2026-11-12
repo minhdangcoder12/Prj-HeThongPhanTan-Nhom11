@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { api, poll } from "./api.js";
 import { Result } from "./App.jsx";
+import Login from "./Login.jsx";
 
 const point = (p) => ({ lat: Number(p.lat), lng: Number(p.lng) });
 
-export default function Passenger() {
-  const [passengerId, setPassengerId] = useState(() => crypto.randomUUID());
+export default function Passenger({ session, onSession }) {
   const [pickup, setPickup] = useState({ lat: "10.7765", lng: "106.7010" });
   const [dropoff, setDropoff] = useState({ lat: "10.7626", lng: "106.6602" });
   const [result, setResult] = useState(null);
@@ -15,7 +15,7 @@ export default function Passenger() {
   useEffect(() => (tripId ? poll(`/api/trips/${tripId}`, setTrip) : undefined), [tripId]);
 
   async function requestTrip() {
-    const r = await api("POST", "/api/trips", { passengerId, pickup: point(pickup), dropoff: point(dropoff) });
+    const r = await api("POST", "/api/trips", { pickup: point(pickup), dropoff: point(dropoff) }, session?.token);
     setResult(r);
     if (r.ok && r.data?.id) setTripId(r.data.id);
   }
@@ -23,9 +23,7 @@ export default function Passenger() {
   return (
     <div className="panel">
       <h2>Passenger</h2>
-      <label>
-        passengerId <input value={passengerId} onChange={(e) => setPassengerId(e.target.value)} />
-      </label>
+      <Login defaultEmail="passenger1@rideflow.demo" session={session} onSession={onSession} />
       <div className="row">
         pickup
         <input value={pickup.lat} onChange={(e) => setPickup({ ...pickup, lat: e.target.value })} />
@@ -43,6 +41,8 @@ export default function Passenger() {
       {trip && !trip.error && (
         <p>
           Trip <code>{trip.id?.slice(0, 8)}</code>: <b>{trip.status}</b> · driver {trip.driverId?.slice(0, 8) ?? "-"}
+          {trip.fare != null && <> · cước {trip.fare.toLocaleString()} đ</>}
+          {trip.surgeMultiplier != null && <> · surge x{trip.surgeMultiplier}</>}
         </p>
       )}
       <Result r={result} />

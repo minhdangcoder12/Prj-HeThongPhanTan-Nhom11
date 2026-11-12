@@ -62,7 +62,8 @@ components:
                 status:      { type: string }
                 pickup:      { $ref: "#/components/schemas/Point" }
                 dropoff:     { $ref: "#/components/schemas/Point" }
-                fare:        { type: [number, "null"] }
+                fare:        { type: [number, "null"], description: "VND, already multiplied by surgeMultiplier" }
+                surgeMultiplier: { type: number, minimum: 1.0, maximum: 2.0, description: "waiting trips / available drivers within 3 km of pickup; trip-service reads supply from GET /internal/matching/supply?lat&lng&radiusKm (matching-service, field availableDrivers), 1.0 if that call fails" }
     DriverEnvelope:
       allOf:
         - $ref: "#/components/schemas/Envelope"

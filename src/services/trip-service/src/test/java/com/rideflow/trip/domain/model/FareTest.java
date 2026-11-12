@@ -21,6 +21,11 @@ class FareTest {
     }
 
     @Test
+    void surgeFareIsRoundedUpToThousand() {
+        assertThat(Fare.withSurge(new BigDecimal("31000"), new BigDecimal("1.50"))).isEqualByComparingTo("47000");
+    }
+
+    @Test
     void fareIsBasePlusPerKmRoundedUpToThousand() {
         // 12000 + 4000 * 4.72 = 30 880 -> 31 000
         assertThat(Fare.estimate(10.7765, 106.7010, 10.7626, 106.6602)).isEqualByComparingTo(new BigDecimal("31000"));

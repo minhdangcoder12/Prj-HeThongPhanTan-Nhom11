@@ -6,21 +6,45 @@ info:
     Only /api/** is public. Errors are RFC 7807 ProblemDetail. Every request may carry X-Correlation-Id.
     x-phase = roadmap phase implementing the endpoint; 0 = already in the skeleton.
     x-profile: demo = exists only with SPRING_PROFILES_ACTIVE=demo.
+    Auth: JWT HS256 (Authorization: Bearer <token>) checked at the gateway. Public: /api/auth/**, /api/monitor/** and every GET.
+    All other requests need a token, else 401. The gateway strips client X-User-Id / X-User-Role / X-Driver-Id and
+    sets them from the token; services re-check the role on write endpoints (wrong role -> 403).
 servers:
   - url: http://localhost:8080
 
 paths:
-  /api/auth/login:
+  /api/auth/register:
     post:
       x-phase: 1
-      summary: Login, returns JWT
+      summary: "Register a PASSENGER or DRIVER account (ADMIN cannot self-register). Never returns the password hash"
+      security: []
       requestBody:
         content:
           application/json:
-            schema: { type: object, properties: { email: { type: string }, password: { type: string } } }
+            schema:
+              type: object
+              required: [email, password, fullName, role]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8, maxLength: 72 }
+                fullName: { type: string }
+                role: { type: string, enum: [PASSENGER, DRIVER] }
       responses:
-        "200": { description: "{ token, userId, role }" }
-        "401": { $ref: "#/components/responses/Problem" }
+        "201": { description: "User { id, email, fullName, role, driverId, createdAt }" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /api/auth/login:
+    post:
+      x-phase: 1
+      summary: Login, returns JWT (HS256, 8h; claims sub=userId, role, driverId for DRIVER)
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [email, password], properties: { email: { type: string }, password: { type: string } } }
+      responses:
+        "200": { description: "{ token, userId, role, driverId } (driverId only for seeded DRIVER accounts)" }
+        "401": { description: "Same message for unknown email and wrong password", content: { application/problem+json: { schema: { type: object } } } }
 
   /api/trips:
     get:
@@ -29,13 +53,15 @@ paths:
       responses: { "200": { description: Trip[] } }
     post:
       x-phase: 1
-      summary: "Passenger requests a trip -> REQUESTED, emits trip.created. fare (VND) = 12000 + 4000/km haversine, rounded up to 1000. Same Idempotency-Key returns the first trip"
+      summary: "PASSENGER requests a trip (passengerId = X-User-Id from the token) -> REQUESTED, emits trip.created. fare (VND) = (12000 + 4000/km haversine) x surgeMultiplier, rounded up to 1000. Trip JSON has surgeMultiplier (1.00-2.00 = waiting trips / available drivers within 3 km of pickup; 1.00 if the supply lookup fails). Same Idempotency-Key returns the first trip"
       parameters: [ { $ref: "#/components/parameters/IdempotencyKey" } ]
       requestBody:
         content: { application/json: { schema: { $ref: "#/components/schemas/CreateTrip" } } }
       responses:
         "201": { description: Trip }
         "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
   /api/trips/{id}:
     get:
       x-phase: 0
@@ -45,13 +71,13 @@ paths:
         "200": { description: Trip }
         "404": { $ref: "#/components/responses/Problem" }
   /api/trips/{id}/accept:
-    post: { x-phase: 1, summary: "Driver accepts: DRIVER_ASSIGNED -> ACCEPTED", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "409": { $ref: "#/components/responses/Problem" } } }
+    post: { x-phase: 1, summary: "DRIVER only. Driver accepts: DRIVER_ASSIGNED -> ACCEPTED", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "401": { $ref: "#/components/responses/Problem" }, "403": { $ref: "#/components/responses/Problem" }, "409": { $ref: "#/components/responses/Problem" } } }
   /api/trips/{id}/reject:
-    post: { x-phase: 1, summary: "Driver rejects: DRIVER_ASSIGNED -> MATCHING, emits trip.driver-rejected (payload.driverId = rejecting driver)", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "409": { $ref: "#/components/responses/Problem" } } }
+    post: { x-phase: 1, summary: "DRIVER only. Driver rejects: DRIVER_ASSIGNED -> MATCHING, emits trip.driver-rejected (payload.driverId = rejecting driver)", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "401": { $ref: "#/components/responses/Problem" }, "403": { $ref: "#/components/responses/Problem" }, "409": { $ref: "#/components/responses/Problem" } } }
   /api/trips/{id}/start:
-    post: { x-phase: 1, summary: "ACCEPTED -> IN_PROGRESS", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "409": { $ref: "#/components/responses/Problem" } } }
+    post: { x-phase: 1, summary: "DRIVER only. ACCEPTED -> IN_PROGRESS", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "401": { $ref: "#/components/responses/Problem" }, "403": { $ref: "#/components/responses/Problem" }, "409": { $ref: "#/components/responses/Problem" } } }
   /api/trips/{id}/complete:
-    post: { x-phase: 1, summary: "IN_PROGRESS -> COMPLETED, emits trip.completed", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "409": { $ref: "#/components/responses/Problem" } } }
+    post: { x-phase: 1, summary: "DRIVER only. IN_PROGRESS -> COMPLETED, emits trip.completed", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "401": { $ref: "#/components/responses/Problem" }, "403": { $ref: "#/components/responses/Problem" }, "409": { $ref: "#/components/responses/Problem" } } }
 
   # Internal (service-to-service, NOT routed by the gateway); listed so callers and providers agree.
   /internal/trips/{id}/assign-driver:
@@ -73,7 +99,7 @@ paths:
   /api/drivers/{id}/availability:
     put:
       x-phase: 1
-      summary: Go AVAILABLE / OFFLINE, emits driver.availability-changed
+      summary: Go AVAILABLE / OFFLINE (DRIVER only, else 403), emits driver.availability-changed
       parameters: [ { $ref: "#/components/parameters/Id" } ]
       requestBody:
         content: { application/json: { schema: { type: object, properties: { available: { type: boolean } } } } }
@@ -83,7 +109,7 @@ paths:
   /api/drivers/{id}/location:
     put:
       x-phase: 1
-      summary: Update simulated location, emits driver.location-updated
+      summary: Update simulated location (DRIVER only, else 403), emits driver.location-updated
       parameters: [ { $ref: "#/components/parameters/Id" } ]
       requestBody:
         content: { application/json: { schema: { $ref: "#/components/schemas/Point" } } }
@@ -130,7 +156,12 @@ paths:
         content: { application/json: { schema: { type: object, properties: { rate: { type: number } } } } }
       responses: { "200": { description: ok } }
 
+security:
+  - bearerAuth: []
+
 components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
   parameters:
     Id: { name: id, in: path, required: true, schema: { type: string } }
     IdempotencyKey: { name: Idempotency-Key, in: header, required: false, schema: { type: string } }
@@ -142,8 +173,7 @@ components:
     Point: { type: object, required: [lat, lng], properties: { lat: { type: number, minimum: -90, maximum: 90 }, lng: { type: number, minimum: -180, maximum: 180 } } }
     CreateTrip:
       type: object
-      required: [passengerId, pickup, dropoff]
+      required: [pickup, dropoff]
       properties:
-        passengerId: { type: string, format: uuid }
         pickup: { $ref: "#/components/schemas/Point" }
         dropoff: { $ref: "#/components/schemas/Point" }

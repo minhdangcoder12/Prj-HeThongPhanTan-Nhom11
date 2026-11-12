@@ -32,7 +32,7 @@ class TripController {
     record Point(@NotNull @DecimalMin("-90") @DecimalMax("90") Double lat,
                  @NotNull @DecimalMin("-180") @DecimalMax("180") Double lng) {}
 
-    record CreateTripRequest(@NotNull UUID passengerId, @NotNull @Valid Point pickup, @NotNull @Valid Point dropoff) {}
+    record CreateTripRequest(@NotNull @Valid Point pickup, @NotNull @Valid Point dropoff) {}
 
     private final TripQueries queries;
     private final TripCommands commands;
@@ -53,31 +53,60 @@ class TripController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trip " + id + " not found"));
     }
 
+    /** Danh tính do gateway gắn từ JWT (client không giả được); service vẫn kiểm role phía server (R8). */
+    private static void requireRole(String actual, String expected) {
+        if (actual == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing X-User-Role");
+        }
+        if (!expected.equals(actual)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Requires role " + expected);
+        }
+    }
+
+    private static UUID userId(String header) {
+        try {
+            return UUID.fromString(header);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing or invalid X-User-Id");
+        }
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     Trip create(@Valid @RequestBody CreateTripRequest req,
+                @RequestHeader(name = "X-User-Role", required = false) String role,
+                @RequestHeader(name = "X-User-Id", required = false) String userId,
                 @RequestHeader(name = "Idempotency-Key", required = false) @Size(max = MAX_KEY) String idempotencyKey) {
-        return commands.create(req.passengerId(), req.pickup().lat(), req.pickup().lng(),
+        requireRole(role, "PASSENGER");
+        return commands.create(userId(userId), req.pickup().lat(), req.pickup().lng(),
                 req.dropoff().lat(), req.dropoff().lng(), idempotencyKey);
     }
 
     @PostMapping("/{id}/accept")
-    Trip accept(@PathVariable UUID id) {
-        return commands.accept(id);
+    Trip accept(@PathVariable UUID id, @RequestHeader(name = "X-User-Role", required = false) String role,
+             @RequestHeader(name = "X-Driver-Id", required = false) UUID driverId) {
+        requireRole(role, "DRIVER");
+        return commands.accept(id, driverId);
     }
 
     @PostMapping("/{id}/start")
-    Trip start(@PathVariable UUID id) {
-        return commands.start(id);
+    Trip start(@PathVariable UUID id, @RequestHeader(name = "X-User-Role", required = false) String role,
+             @RequestHeader(name = "X-Driver-Id", required = false) UUID driverId) {
+        requireRole(role, "DRIVER");
+        return commands.start(id, driverId);
     }
 
     @PostMapping("/{id}/complete")
-    Trip complete(@PathVariable UUID id) {
-        return commands.complete(id);
+    Trip complete(@PathVariable UUID id, @RequestHeader(name = "X-User-Role", required = false) String role,
+             @RequestHeader(name = "X-Driver-Id", required = false) UUID driverId) {
+        requireRole(role, "DRIVER");
+        return commands.complete(id, driverId);
     }
 
     @PostMapping("/{id}/reject")
-    Trip reject(@PathVariable UUID id) {
-        return commands.reject(id);
+    Trip reject(@PathVariable UUID id, @RequestHeader(name = "X-User-Role", required = false) String role,
+             @RequestHeader(name = "X-Driver-Id", required = false) UUID driverId) {
+        requireRole(role, "DRIVER");
+        return commands.reject(id, driverId);
     }
 }

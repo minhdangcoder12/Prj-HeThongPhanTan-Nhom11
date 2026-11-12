@@ -1,5 +1,6 @@
 package com.rideflow.trip.adapter.in.web;
 
+import com.rideflow.trip.application.NotTripDriverException;
 import com.rideflow.trip.domain.model.InvalidTripTransitionException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -14,6 +15,11 @@ class TripErrorHandler {
     @ExceptionHandler(InvalidTripTransitionException.class)
     ProblemDetail wrongStatus(InvalidTripTransitionException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    @ExceptionHandler(NotTripDriverException.class)
+    ProblemDetail notYourTrip(NotTripDriverException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
     }
 
     @ExceptionHandler(NoSuchElementException.class)

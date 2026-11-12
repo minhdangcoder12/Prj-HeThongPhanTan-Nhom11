@@ -19,6 +19,11 @@ public final class Fare {
         return raw.divide(ROUND_TO, 0, RoundingMode.CEILING).multiply(ROUND_TO);
     }
 
+    /** Cước đã nhân hệ số giá, làm tròn lên 1.000 như cước gốc. */
+    public static BigDecimal withSurge(BigDecimal fare, BigDecimal multiplier) {
+        return fare.multiply(multiplier).divide(ROUND_TO, 0, RoundingMode.CEILING).multiply(ROUND_TO);
+    }
+
     /** Khoảng cách đường chim bay (công thức haversine). */
     public static double distanceKm(double fromLat, double fromLng, double toLat, double toLng) {
         double dLat = Math.toRadians(toLat - fromLat);

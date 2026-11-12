@@ -5,6 +5,8 @@ import com.rideflow.common.event.EventEnvelope;
 import com.rideflow.common.outbox.InboxGuard;
 import com.rideflow.common.outbox.OutboxWriter;
 import com.rideflow.trip.application.TripCommands;
+import com.rideflow.trip.application.port.out.DriverSupply;
+import com.rideflow.trip.application.port.out.TripRepository;
 import com.rideflow.trip.domain.model.Trip;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,6 +47,12 @@ class TripPostgresTest {
             return new OutboxWriter(jdbc, new ObjectMapper().findAndRegisterModules());
         }
 
+        /** 1 tài xế rảnh quanh mọi điểm đón. */
+        @Bean
+        DriverSupply driverSupply() {
+            return (lat, lng, radiusKm) -> 1;
+        }
+
         @Bean
         InboxGuard inboxGuard(JdbcTemplate jdbc) {
             return new InboxGuard(jdbc);
@@ -55,6 +63,8 @@ class TripPostgresTest {
     TripCommands commands;
     @Autowired
     JdbcTemplate jdbc;
+    @Autowired
+    TripRepository repository;
 
     private int count(String sql, Object... args) {
         return jdbc.queryForObject(sql, Integer.class, args);
@@ -85,12 +95,33 @@ class TripPostgresTest {
     }
 
     @Test
+    void surgeIsStoredAndOnlyNearbyWaitingTripsCount() {
+        // Điểm đón riêng (lat 20.0) để không lẫn với test khác dùng chung container.
+        UUID passenger = UUID.randomUUID();
+        Trip first = commands.create(passenger, 20.0, 106.0, 20.01, 106.01, null);
+        commands.create(passenger, 20.01, 106.0, 20.02, 106.01, null);               // ~1,1 km
+        Trip third = commands.create(passenger, 20.0, 106.02, 20.01, 106.01, null);  // ~2,1 km
+        Trip far = commands.create(passenger, 20.0, 106.5, 20.01, 106.01, null);     // ~52 km, không tính
+
+        assertThat(first.surgeMultiplier()).isEqualByComparingTo("1.00"); // 1 chờ / 1 tài xế
+        assertThat(third.surgeMultiplier()).isEqualByComparingTo("2.00"); // 3 chờ / 1 tài xế, kẹp 2.0
+        assertThat(far.surgeMultiplier()).isEqualByComparingTo("1.00");
+        assertThat(jdbc.queryForObject("select surge_multiplier from trips where id = ?", java.math.BigDecimal.class,
+                third.id())).isEqualByComparingTo("2.00");
+
+        assertThat(repository.countWaitingNear(20.0, 106.0, 3)).isEqualTo(3);
+        commands.assignDriver(first.id(), UUID.randomUUID(), "k"); // đã ghép xong thì không còn chờ
+        assertThat(repository.countWaitingNear(20.0, 106.0, 3)).isEqualTo(2);
+    }
+
+    @Test
     void duplicatePaymentEventIsAppliedOnce() {
         Trip trip = newTrip(UUID.randomUUID(), null);
-        commands.assignDriver(trip.id(), UUID.randomUUID(), "k");
-        commands.accept(trip.id());
-        commands.start(trip.id());
-        commands.complete(trip.id());
+        UUID driver = UUID.randomUUID();
+        commands.assignDriver(trip.id(), driver, "k");
+        commands.accept(trip.id(), driver);
+        commands.start(trip.id(), driver);
+        commands.complete(trip.id(), driver);
         var paid = EventEnvelope.<Map<String, Object>>of("payment.succeeded", UUID.randomUUID().toString(),
                 "payment-service", null, Map.of("tripId", trip.id().toString()));
 

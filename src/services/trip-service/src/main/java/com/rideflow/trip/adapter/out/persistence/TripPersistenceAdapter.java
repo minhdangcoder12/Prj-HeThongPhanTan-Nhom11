@@ -31,6 +31,15 @@ class TripPersistenceAdapter implements TripRepository {
     }
 
     @Override
+    public int countWaitingNear(double lat, double lng, double radiusKm) {
+        // Haversine ngay trong SQL (Postgres không có PostGIS); least(1, ..) tránh asin(>1) do sai số làm tròn.
+        return jdbc.queryForObject("SELECT count(*) FROM trips WHERE status IN ('REQUESTED', 'MATCHING') "
+                + "AND 2 * 6371 * asin(least(1, sqrt(power(sin(radians(pickup_lat - ?) / 2), 2) "
+                + "+ cos(radians(?)) * cos(radians(pickup_lat)) * power(sin(radians(pickup_lng - ?) / 2), 2)))) <= ?",
+                Integer.class, lat, lat, lng, radiusKm);
+    }
+
+    @Override
     public List<Trip> findRecent(int limit) {
         return jpa.findAll(PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "createdAt")))
                 .map(TripJpaEntity::toDomain).toList();
