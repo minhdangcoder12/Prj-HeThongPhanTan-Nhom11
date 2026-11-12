@@ -5,7 +5,7 @@
 cd "$(dirname "$0")/../.." || exit 1
 source tests/e2e/lib.sh
 source .env
-TRIP_URL=${TRIP_URL:-http://localhost:8083}
+without_matching
 MQ=${MQ:-http://localhost:15672}
 DRIVER=00000000-0000-0000-0000-0000000000d3
 
@@ -32,9 +32,8 @@ publish payment.succeeded "$TRIP"; sleep 2
 check P1 "payment.succeeded before COMPLETED is ignored" "REQUESTED" "$(status_of "$TRIP")"
 
 # Đưa chuyến tới COMPLETED (assign qua API nội bộ như saga).
-curl -s -o /dev/null -X POST -H 'Content-Type: application/json' -H "Idempotency-Key: a3-$TRIP" \
-  -d "{\"driverId\":\"$DRIVER\"}" "$TRIP_URL/internal/trips/$TRIP/assign-driver"
-as_driver
+internal "/internal/trips/$TRIP/assign-driver" "a3-$TRIP" "{\"driverId\":\"$DRIVER\"}" >/dev/null
+as_driver 3 # DRIVER là D03: chỉ tài xế được gán mới accept được
 for action in accept start complete; do http POST "/api/trips/$TRIP/$action"; done
 check P2 "trip reached COMPLETED" "COMPLETED" "$(status_of "$TRIP")"
 
