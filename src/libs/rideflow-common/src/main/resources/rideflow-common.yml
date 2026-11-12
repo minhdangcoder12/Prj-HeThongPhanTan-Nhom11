@@ -1,5 +1,20 @@
 # Shared service config. Each service: spring.config.import: classpath:rideflow-common.yml + sets rideflow.db.
 spring:
+  cloud:
+    consul:
+      # Tắt mặc định để ./mvnw verify và chạy local không cần Consul; compose bật bằng CONSUL_ENABLED=true.
+      enabled: ${CONSUL_ENABLED:false}
+      host: ${CONSUL_HOST:localhost}
+      discovery:
+        # instance-id duy nhất để scale nhiều instance cùng một service (scripts/scale.sh).
+        instance-id: ${spring.application.name}-${random.uuid}
+        prefer-ip-address: true
+        health-check-path: /actuator/health
+        health-check-interval: 10s
+        # Instance critical quá 30s thì Consul tự gỡ đăng ký.
+        health-check-critical-timeout: 30s
+        # Chỉ trả instance đang passing.
+        query-passing: true
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${rideflow.db}
     username: ${POSTGRES_USER:rideflow_admin}
