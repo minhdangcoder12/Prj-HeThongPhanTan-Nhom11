@@ -83,26 +83,30 @@ class TripController {
     }
 
     @PostMapping("/{id}/accept")
-    Trip accept(@PathVariable UUID id, @RequestHeader(name = "X-User-Role", required = false) String role) {
+    Trip accept(@PathVariable UUID id, @RequestHeader(name = "X-User-Role", required = false) String role,
+             @RequestHeader(name = "X-Driver-Id", required = false) UUID driverId) {
         requireRole(role, "DRIVER");
-        return commands.accept(id);
+        return commands.accept(id, driverId);
     }
 
     @PostMapping("/{id}/start")
-    Trip start(@PathVariable UUID id, @RequestHeader(name = "X-User-Role", required = false) String role) {
+    Trip start(@PathVariable UUID id, @RequestHeader(name = "X-User-Role", required = false) String role,
+             @RequestHeader(name = "X-Driver-Id", required = false) UUID driverId) {
         requireRole(role, "DRIVER");
-        return commands.start(id);
+        return commands.start(id, driverId);
     }
 
     @PostMapping("/{id}/complete")
-    Trip complete(@PathVariable UUID id, @RequestHeader(name = "X-User-Role", required = false) String role) {
+    Trip complete(@PathVariable UUID id, @RequestHeader(name = "X-User-Role", required = false) String role,
+             @RequestHeader(name = "X-Driver-Id", required = false) UUID driverId) {
         requireRole(role, "DRIVER");
-        return commands.complete(id);
+        return commands.complete(id, driverId);
     }
 
     @PostMapping("/{id}/reject")
-    Trip reject(@PathVariable UUID id, @RequestHeader(name = "X-User-Role", required = false) String role) {
+    Trip reject(@PathVariable UUID id, @RequestHeader(name = "X-User-Role", required = false) String role,
+             @RequestHeader(name = "X-Driver-Id", required = false) UUID driverId) {
         requireRole(role, "DRIVER");
-        return commands.reject(id);
+        return commands.reject(id, driverId);
     }
 }

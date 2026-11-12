@@ -106,7 +106,7 @@ class TripControllerTest {
 
     @Test
     void wrongStatusIs409ProblemDetail() throws Exception {
-        when(commands.start(trip.id())).thenThrow(new InvalidTripTransitionException(TripStatus.REQUESTED, TripStatus.IN_PROGRESS));
+        when(commands.start(eq(trip.id()), any())).thenThrow(new InvalidTripTransitionException(TripStatus.REQUESTED, TripStatus.IN_PROGRESS));
 
         mvc.perform(as(post("/api/trips/" + trip.id() + "/start"), "DRIVER"))
                 .andExpect(status().isConflict())
@@ -116,15 +116,15 @@ class TripControllerTest {
 
     @Test
     void unknownTripIs404() throws Exception {
-        when(commands.accept(any())).thenThrow(new NoSuchElementException("Trip x not found"));
+        when(commands.accept(any(), any())).thenThrow(new NoSuchElementException("Trip x not found"));
 
         mvc.perform(as(post("/api/trips/" + UUID.randomUUID() + "/accept"), "DRIVER")).andExpect(status().isNotFound());
     }
 
     @Test
     void completeAndRejectAreRouted() throws Exception {
-        when(commands.complete(trip.id())).thenReturn(trip);
-        when(commands.reject(trip.id())).thenReturn(trip);
+        when(commands.complete(eq(trip.id()), any())).thenReturn(trip);
+        when(commands.reject(eq(trip.id()), any())).thenReturn(trip);
 
         mvc.perform(as(post("/api/trips/" + trip.id() + "/complete"), "DRIVER")).andExpect(status().isOk());
         mvc.perform(as(post("/api/trips/" + trip.id() + "/reject"), "DRIVER")).andExpect(status().isOk());

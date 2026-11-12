@@ -63,21 +63,21 @@ public class TripCommands {
         return trip;
     }
 
-    public Trip accept(UUID id) {
-        return move(id, "trip.accepted", t -> t.transitionTo(TripStatus.ACCEPTED, Instant.now()));
+    public Trip accept(UUID id, UUID driverId) {
+        return move(id, driverId, "trip.accepted", t -> t.transitionTo(TripStatus.ACCEPTED, Instant.now()));
     }
 
-    public Trip start(UUID id) {
-        return move(id, "trip.started", t -> t.transitionTo(TripStatus.IN_PROGRESS, Instant.now()));
+    public Trip start(UUID id, UUID driverId) {
+        return move(id, driverId, "trip.started", t -> t.transitionTo(TripStatus.IN_PROGRESS, Instant.now()));
     }
 
-    public Trip complete(UUID id) {
-        return move(id, "trip.completed", t -> t.transitionTo(TripStatus.COMPLETED, Instant.now()));
+    public Trip complete(UUID id, UUID driverId) {
+        return move(id, driverId, "trip.completed", t -> t.transitionTo(TripStatus.COMPLETED, Instant.now()));
     }
 
     /** matching cần tài xế vừa từ chối và điểm đón để chọn người khác. */
-    public Trip reject(UUID id) {
-        Trip before = load(id);
+    public Trip reject(UUID id, UUID driverId) {
+        Trip before = loadForDriver(id, driverId);
         Trip after = trips.save(before.rejectByDriver(Instant.now()));
         publish(after, before.status(), "trip.driver-rejected", DRIVER, before.driverId());
         return after;
@@ -129,11 +129,20 @@ public class TripCommands {
         trips.recordTransition(tripId, before.status(), target, SYSTEM, event.correlationId());
     }
 
-    private Trip move(UUID id, String eventType, UnaryOperator<Trip> change) {
-        Trip before = load(id);
+    private Trip move(UUID id, UUID driverId, String eventType, UnaryOperator<Trip> change) {
+        Trip before = loadForDriver(id, driverId);
         Trip after = trips.save(change.apply(before));
         publish(after, before.status(), eventType, DRIVER, after.driverId());
         return after;
+    }
+
+    /** Kiểm dưới khoá dòng: tài xế khác (hoặc chuyến chưa có tài xế) không được thao tác. */
+    private Trip loadForDriver(UUID id, UUID driverId) {
+        Trip trip = load(id);
+        if (driverId == null || !driverId.equals(trip.driverId())) {
+            throw new NotTripDriverException(id);
+        }
+        return trip;
     }
 
     private Trip load(UUID id) {
