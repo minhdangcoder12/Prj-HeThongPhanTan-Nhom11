@@ -13,7 +13,6 @@ export default function Chaos({ token }) {
   const [rate, setRate] = useState("1");
   const run = async (method, path, body) => setResult(await api(method, path, body, token));
   const [dlq, setDlq] = useState({ count: 0 });
-  const run = async (method, path, body) => setResult(await api(method, path, body));
 
   useEffect(() => {
     return poll("/api/notifications/dlq", (d) => d && setDlq(d), 3000);
