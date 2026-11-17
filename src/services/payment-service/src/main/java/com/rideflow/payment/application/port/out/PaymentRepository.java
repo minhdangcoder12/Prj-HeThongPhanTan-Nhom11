@@ -12,5 +12,7 @@ public interface PaymentRepository {
 
     Optional<Payment> findById(UUID id);
 
+    Optional<Payment> findByTripId(UUID tripId);
+
     Payment save(Payment payment);
 }
