@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { api } from "./api.js";
+import { useEffect, useState } from "react";
+import { api, poll } from "./api.js";
 import { Result } from "./App.jsx";
 
 const trip = () => ({
@@ -12,6 +12,11 @@ export default function Chaos({ token }) {
   const [result, setResult] = useState(null);
   const [rate, setRate] = useState("1");
   const run = async (method, path, body) => setResult(await api(method, path, body, token));
+  const [dlq, setDlq] = useState({ count: 0 });
+
+  useEffect(() => {
+    return poll("/api/notifications/dlq", (d) => d && setDlq(d), 3000);
+  }, []);
 
   async function flowB() {
     const [a, b] = await Promise.all([
@@ -43,6 +48,12 @@ export default function Chaos({ token }) {
         Flow C fail-rate
         <input value={rate} onChange={(e) => setRate(e.target.value)} />
         <button onClick={() => run("PUT", "/api/chaos/notification/fail-rate", { rate: Number(rate) })}>Áp dụng</button>
+      </div>
+      <div className="row">
+        DLQ: <b>{dlq?.count ?? 0}</b> tin nhắn
+        <button onClick={() => run("POST", "/api/notifications/dlq/reprocess")} disabled={!dlq?.count}>
+          Reprocess DLQ
+        </button>
       </div>
       <p className="hint">Flow D: bấm “replay” trên một event ở Monitor (gửi lại cùng eventId).</p>
       <Result r={result} />

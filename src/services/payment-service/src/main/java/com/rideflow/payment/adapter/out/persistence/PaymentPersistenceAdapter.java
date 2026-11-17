@@ -31,6 +31,11 @@ class PaymentPersistenceAdapter implements PaymentRepository {
     }
 
     @Override
+    public Optional<Payment> findByTripId(UUID tripId) {
+        return jpa.findByTripId(tripId).map(PaymentJpaEntity::toDomain);
+    }
+
+    @Override
     public Payment save(Payment payment) {
         return jpa.save(PaymentJpaEntity.fromDomain(payment)).toDomain();
     }
