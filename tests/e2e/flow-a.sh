@@ -30,7 +30,7 @@ wait_for 20 "/api/trips/$TRIP" status DRIVER_ASSIGNED
 step A4 "saga assigns a driver within 20s" "DRIVER_ASSIGNED" "$LAST"
 
 as_driver
-for action in accept start complete; do
+for action in accept arrive start complete; do
   http POST "/api/trips/$TRIP/$action"
   step "A5" "driver $action" "200" "$CODE"
 done

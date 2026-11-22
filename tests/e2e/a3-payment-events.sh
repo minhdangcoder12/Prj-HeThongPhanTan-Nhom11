@@ -34,7 +34,7 @@ check P1 "payment.succeeded before COMPLETED is ignored" "REQUESTED" "$(status_o
 # Đưa chuyến tới COMPLETED (assign qua API nội bộ như saga).
 internal "/internal/trips/$TRIP/assign-driver" "a3-$TRIP" "{\"driverId\":\"$DRIVER\"}" >/dev/null
 as_driver 3 # DRIVER là D03: chỉ tài xế được gán mới accept được
-for action in accept start complete; do http POST "/api/trips/$TRIP/$action"; done
+for action in accept arrive start complete; do http POST "/api/trips/$TRIP/$action"; done
 check P2 "trip reached COMPLETED" "COMPLETED" "$(status_of "$TRIP")"
 
 EVENT=$(node -e 'console.log(crypto.randomUUID())')
