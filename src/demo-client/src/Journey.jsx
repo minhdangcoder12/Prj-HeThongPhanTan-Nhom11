@@ -28,7 +28,7 @@ const NEXT = {
 };
 const money = (v) => Number(v).toLocaleString("vi-VN");
 
-export default function Journey({ tripId }) {
+export default function Journey({ tripId, onStatus }) {
   const [trip, setTrip] = useState(null);
   const [drivers, setDrivers] = useState([]);
   useEffect(() => poll("/api/drivers", (d) => Array.isArray(d) && setDrivers(d), 3000), []);
@@ -36,6 +36,7 @@ export default function Journey({ tripId }) {
     setTrip(null);
     return tripId ? poll(`/api/trips/${tripId}`, setTrip) : undefined;
   }, [tripId]);
+  useEffect(() => onStatus?.(trip?.status ?? null), [trip?.status, onStatus]);
 
   if (!tripId) {
     return (
@@ -72,7 +73,7 @@ export default function Journey({ tripId }) {
           </li>
         ))}
       </ol>
-      {NEXT[trip.status] && <p className="journey-note">{NEXT[trip.status]}</p>}
+      {NEXT[trip.status] && <p key={trip.status} className="journey-note">{NEXT[trip.status]}</p>}
       <dl className="facts">
         <div>
           <dt>Tài xế</dt>

@@ -84,6 +84,14 @@ function StateTabs() {
   );
 }
 
+// Khoá ổn định cho mỗi event đã nhận (object giữ nguyên tham chiếu), để chỉ dòng mới chạy hiệu ứng.
+const rowKeys = new WeakMap();
+let nextRowKey = 0;
+const rowKey = (e) => {
+  if (!rowKeys.has(e)) rowKeys.set(e, ++nextRowKey);
+  return rowKeys.get(e);
+};
+
 // Mọi message trên rideflow.events và rideflow.dlx, gateway nghe lén và đẩy qua SSE.
 function EventLog() {
   const [events, setEvents] = useState([]);
@@ -107,7 +115,7 @@ function EventLog() {
       <div className="block-head">
         <span className="row">
           <h2 id="events-title">Event trên RabbitMQ</h2>
-          <span className={connected ? "pill positive" : "pill negative"}>{connected ? "đang nhận trực tiếp" : "mất kết nối"}</span>
+          <span className={connected ? "pill positive live" : "pill negative"}>{connected ? "đang nhận trực tiếp" : "mất kết nối"}</span>
         </span>
         <input className="filter" aria-label="Lọc event" placeholder="Lọc theo correlationId, tripId hoặc tên event" value={filter} onChange={(e) => setFilter(e.target.value)} />
       </div>
@@ -130,8 +138,8 @@ function EventLog() {
               </tr>
             </thead>
             <tbody>
-              {shown.map((e, i) => (
-                <tr key={i} className={e.deadLettered ? "dlq" : ""}>
+              {shown.map((e) => (
+                <tr key={rowKey(e)} className={e.deadLettered ? "dlq" : ""}>
                   <td className="num">{e.receivedAt?.slice(11, 19)}</td>
                   <td>
                     {e.deadLettered && <span className="pill negative">DLQ</span>} {e.routingKey}

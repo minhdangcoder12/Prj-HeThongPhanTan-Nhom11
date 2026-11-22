@@ -10,6 +10,7 @@ export default function App() {
   const [passenger, setPassenger] = useState(null);
   const [driver, setDriver] = useState(null);
   const [tripId, setTripId] = useState("");
+  const [tripStatus, setTripStatus] = useState(null); // status do Journey đã poll, chỉ để hiện trong thẻ Hành khách
   const [health, setHealth] = useState({});
   useEffect(() => poll("/api/monitor/health", setHealth, 3000), []);
 
@@ -40,7 +41,7 @@ export default function App() {
       </header>
 
       <aside className="controls" aria-label="Thao tác demo">
-        <Passenger session={passenger} onSession={setPassenger} tripId={tripId} onTrip={setTripId} />
+        <Passenger session={passenger} onSession={setPassenger} tripId={tripId} onTrip={setTripId} tripStatus={tripStatus} />
         <Driver session={driver} onSession={setDriver} />
         <Chaos token={passenger?.token} />
       </aside>
@@ -54,7 +55,7 @@ export default function App() {
               : `${services.length} service đang chạy · event RabbitMQ hiện trực tiếp bên dưới.`}
           </p>
         </div>
-        <Journey tripId={tripId} />
+        <Journey tripId={tripId} onStatus={setTripStatus} />
         <Monitor />
       </main>
     </div>

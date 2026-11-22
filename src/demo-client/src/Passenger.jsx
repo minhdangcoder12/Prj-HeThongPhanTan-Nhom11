@@ -1,12 +1,27 @@
 import { useState } from "react";
 import { api } from "./api.js";
-import { Result } from "./App.jsx";
+import { Result, Status } from "./App.jsx";
 import Login from "./Login.jsx";
 
 const point = (p) => ({ lat: Number(p.lat), lng: Number(p.lng) });
 
+// Lời nhắn cho hành khách theo status server trả về (chỉ hiển thị, không suy ra trạng thái).
+const SAY = {
+  REQUESTED: "Đang tìm tài xế gần bạn…",
+  MATCHING: "Tài xế vừa từ chối, đang tìm người khác…",
+  DRIVER_ASSIGNED: "Đã có tài xế, chờ tài xế nhận chuyến.",
+  ACCEPTED: "Tài xế đang đến điểm đón.",
+  ARRIVED: "Tài xế đã tới điểm đón, mời bạn lên xe.",
+  IN_PROGRESS: "Đang trên đường tới điểm đến.",
+  COMPLETED: "Đã tới nơi, đang thanh toán…",
+  PAID: "Đã thanh toán. Có thể đặt chuyến mới.",
+  NO_DRIVER: "Không có tài xế phù hợp. Thử đặt lại.",
+  PAYMENT_FAILED: "Thanh toán thất bại.",
+  CANCELLED: "Chuyến đã huỷ.",
+};
+
 // Hành khách đặt chuyến; chuyến được theo dõi ở khối "Chuyến đang theo dõi" trên tờ chính.
-export default function Passenger({ session, onSession, tripId, onTrip }) {
+export default function Passenger({ session, onSession, tripId, onTrip, tripStatus }) {
   const [pickup, setPickup] = useState({ lat: "10.7765", lng: "106.7010" });
   const [dropoff, setDropoff] = useState({ lat: "10.7626", lng: "106.6602" });
   const [result, setResult] = useState(null);
@@ -25,19 +40,27 @@ export default function Passenger({ session, onSession, tripId, onTrip }) {
     </div>
   );
 
+  const say = !session
+    ? "Đăng nhập để đặt xe (không có token → 401)."
+    : tripId
+      ? SAY[tripStatus] ?? "Đang tải chuyến…"
+      : "Nhập điểm đón, điểm đến rồi bấm Đặt xe.";
+
   return (
-    <section className="panel" aria-labelledby="passenger-title">
+    <section className="panel card passenger" aria-labelledby="passenger-title">
       <h2 id="passenger-title">Hành khách</h2>
       <Login defaultEmail="passenger1@rideflow.demo" session={session} onSession={onSession} />
+      <div className="now" aria-live="polite">
+        <span className="now-label">Chuyến của bạn</span>
+        {tripId ? <Status value={tripStatus} /> : <span className="dash">chưa có</span>}
+        <p key={say} className="now-say">{say}</p>
+      </div>
       {coord("Điểm đón", pickup, setPickup)}
       {coord("Điểm đến", dropoff, setDropoff)}
-      <div className="row">
-        <button className="primary" onClick={requestTrip} disabled={!session}>
-          Đặt xe
-        </button>
-        <input aria-label="Theo dõi chuyến theo tripId" className="id" placeholder="hoặc dán tripId" value={tripId} onChange={(e) => onTrip(e.target.value.trim())} />
-      </div>
-      {!session && <p className="hint">Cần đăng nhập trước khi đặt xe (không có token → 401).</p>}
+      <button className="primary main" onClick={requestTrip} disabled={!session}>
+        Đặt xe
+      </button>
+      <input aria-label="Theo dõi chuyến theo tripId" className="id" placeholder="hoặc dán tripId để theo dõi" value={tripId} onChange={(e) => onTrip(e.target.value.trim())} />
       <Result r={result} />
     </section>
   );

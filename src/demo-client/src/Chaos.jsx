@@ -27,7 +27,7 @@ export default function Chaos({ token }) {
   }
 
   return (
-    <section className="panel" aria-labelledby="chaos-title">
+    <section className="panel card chaos" aria-labelledby="chaos-title">
       <h2 id="chaos-title">Kịch bản lỗi</h2>
       {!token && <p className="hint">Cần đăng nhập Hành khách trước (lệnh ghi cần token).</p>}
 
