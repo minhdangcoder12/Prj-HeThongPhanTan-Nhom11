@@ -38,20 +38,23 @@ check R6 "test event visible on SSE monitor" "1" "$(grep -c "$PING" "$SSE")"
 rm -f "$SSE"
 
 # R7 – Flow D: same eventId delivered twice => one notification.
-count_notifications() { http GET /api/notifications; printf '%s' "$BODY" | grep -o '"type"' | wc -l | tr -d ' '; }
-BEFORE=$(count_notifications)
-EID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || printf '%08d-0000-4000-8000-%012d' $RANDOM $RANDOM)
-TRIP=aaaaaaaa-0000-4000-8000-000000000001
-EVENT="{\\\"eventId\\\":\\\"$EID\\\",\\\"eventType\\\":\\\"trip.created\\\",\\\"eventVersion\\\":1,\\\"correlationId\\\":\\\"$EID\\\",\\\"causationId\\\":null,\\\"aggregateId\\\":\\\"$TRIP\\\",\\\"producer\\\":\\\"eval\\\",\\\"occurredAt\\\":\\\"2026-01-01T00:00:00Z\\\",\\\"payload\\\":{}}"
+# Mỗi lần chạy dùng tripId mới và đếm thông báo của đúng chuyến đó: API chỉ trả 100 dòng gần nhất nên không đếm tổng.
+# trip.started vì chỉ notification nghe; trip.created sẽ kích hoạt saga giả giữ tài xế D01.
+# Git Bash (Windows) không có /proc/sys/kernel/random/uuid: tự ghép UUID v4 hợp lệ từ $RANDOM (≤ 0x7fff).
+uuid() { cat /proc/sys/kernel/random/uuid 2>/dev/null || printf '%04x%04x-%04x-4%03x-8%03x-%04x%04x%04x' \
+  $RANDOM $RANDOM $RANDOM $((RANDOM % 4096)) $((RANDOM % 4096)) $RANDOM $RANDOM $RANDOM; }
+EID=$(uuid)
+TRIP=$(uuid)
+count_notifications() { http GET /api/notifications; printf '%s' "$BODY" | grep -o "\"tripId\":\"$TRIP\"" | wc -l | tr -d ' '; }
+EVENT="{\\\"eventId\\\":\\\"$EID\\\",\\\"eventType\\\":\\\"trip.started\\\",\\\"eventVersion\\\":1,\\\"correlationId\\\":\\\"$EID\\\",\\\"causationId\\\":null,\\\"aggregateId\\\":\\\"$TRIP\\\",\\\"producer\\\":\\\"eval\\\",\\\"occurredAt\\\":\\\"2026-01-01T00:00:00Z\\\",\\\"payload\\\":{}}"
 curl -s -u "$RABBITMQ_USERNAME:$RABBITMQ_PASSWORD" -H 'Content-Type: application/json' \
   -X POST "http://localhost:15672/api/exchanges/%2F/rideflow.events/publish" \
-  -d "{\"properties\":{\"content_type\":\"application/json\"},\"routing_key\":\"trip.created\",\"payload\":\"$EVENT\",\"payload_encoding\":\"string\"}" > /dev/null
-sleep 3
-AFTER_FIRST=$(count_notifications)
+  -d "{\"properties\":{\"content_type\":\"application/json\"},\"routing_key\":\"trip.started\",\"payload\":\"$EVENT\",\"payload_encoding\":\"string\"}" > /dev/null
+for _ in $(seq 1 15); do AFTER_FIRST=$(count_notifications); [ "$AFTER_FIRST" -ge 1 ] && break; sleep 1; done
 http POST "/api/monitor/replay/$EID"
 sleep 3
 AFTER_REPLAY=$(count_notifications)
-check R7 "first delivery creates 1 notification" "$((BEFORE + 1))" "$AFTER_FIRST"
-check R8 "replay with same eventId creates none (inbox)" "$AFTER_FIRST" "$AFTER_REPLAY"
+check R7 "first delivery creates 1 notification" "1" "$AFTER_FIRST"
+check R8 "replay with same eventId creates none (inbox)" "1" "$AFTER_REPLAY"
 
 summary
