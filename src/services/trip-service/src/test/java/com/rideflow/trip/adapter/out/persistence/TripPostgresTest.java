@@ -120,6 +120,7 @@ class TripPostgresTest {
         UUID driver = UUID.randomUUID();
         commands.assignDriver(trip.id(), driver, "k");
         commands.accept(trip.id(), driver);
+        commands.arrive(trip.id(), driver); // V4 cho phép 'ARRIVED' trong CHECK của cột status
         commands.start(trip.id(), driver);
         commands.complete(trip.id(), driver);
         var paid = EventEnvelope.<Map<String, Object>>of("payment.succeeded", UUID.randomUUID().toString(),

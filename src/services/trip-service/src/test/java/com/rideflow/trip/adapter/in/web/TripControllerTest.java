@@ -93,7 +93,7 @@ class TripControllerTest {
 
     @Test
     void passengerCannotAcceptStartCompleteOrReject() throws Exception {
-        for (String action : new String[]{"accept", "start", "complete", "reject"}) {
+        for (String action : new String[]{"accept", "arrive", "start", "complete", "reject"}) {
             mvc.perform(as(post("/api/trips/" + trip.id() + "/" + action), "PASSENGER")).andExpect(status().isForbidden());
             mvc.perform(post("/api/trips/" + trip.id() + "/" + action)).andExpect(status().isUnauthorized());
         }
@@ -120,6 +120,16 @@ class TripControllerTest {
         when(commands.accept(any(), any())).thenThrow(new NoSuchElementException("Trip x not found"));
 
         mvc.perform(as(post("/api/trips/" + UUID.randomUUID() + "/accept"), "DRIVER")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void arriveIsRoutedWithDriverId() throws Exception {
+        UUID driver = UUID.randomUUID();
+        when(commands.arrive(trip.id(), driver)).thenReturn(trip);
+
+        mvc.perform(as(post("/api/trips/" + trip.id() + "/arrive"), "DRIVER").header("X-Driver-Id", driver.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(trip.id().toString()));
     }
 
     @Test
