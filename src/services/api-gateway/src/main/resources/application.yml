@@ -63,10 +63,16 @@ rideflow:
     payment: lb://payment-service
     notification: lb://notification-service
 management:
+  tracing:
+    sampling:
+      probability: ${TRACING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://${JAEGER_HOST:localhost}:4318/v1/traces}
   endpoints:
     web:
       exposure:
         include: health,info
 logging:
   pattern:
-    level: "%5p [api-gateway,%X{correlationId:-}]"
+    level: "%5p [api-gateway,%X{traceId:-},%X{spanId:-},%X{correlationId:-}]"

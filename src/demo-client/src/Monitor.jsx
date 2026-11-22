@@ -43,23 +43,60 @@ function EventLog() {
   const [filter, setFilter] = useState("");
   const [connected, setConnected] = useState(false);
   const [replayed, setReplayed] = useState(null);
+  const [dlq, setDlq] = useState({ count: 0, queue: "" });
+  const [reprocessing, setReprocessing] = useState(false);
 
   useEffect(() => {
     const source = new EventSource("/api/monitor/events");
     source.onopen = () => setConnected(true);
     source.onerror = () => setConnected(false);
     source.onmessage = (m) => setEvents((prev) => [JSON.parse(m.data), ...prev].slice(0, 300));
-    return () => source.close();
+    const stopPoll = poll("/api/notifications/dlq", (d) => d && setDlq(d), 3000);
+    return () => {
+      source.close();
+      stopPoll();
+    };
   }, []);
 
   const shown = events.filter((e) => !filter || JSON.stringify(e.body).includes(filter));
   const replay = async (eventId) => setReplayed(await api("POST", `/api/monitor/replay/${eventId}`));
 
+  const reprocessDlq = async () => {
+    setReprocessing(true);
+    try {
+      const res = await api("POST", "/api/notifications/dlq/reprocess");
+      if (res.ok && res.data) {
+        setDlq((prev) => ({ ...prev, count: res.data.remaining ?? 0 }));
+      }
+    } finally {
+      setReprocessing(false);
+    }
+  };
+
   return (
     <div className="panel events">
-      <h3>
-        Events <b className={connected ? "up" : "down"}>{connected ? "live" : "disconnected"}</b>
-      </h3>
+      <div className="row" style={{ justifyContent: "space-between", margin: "0 0 6px" }}>
+        <h3 style={{ margin: 0 }}>
+          Events <b className={connected ? "up" : "down"}>{connected ? "live" : "disconnected"}</b>
+        </h3>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <span>
+            DLQ: <b className={dlq?.count > 0 ? "down" : ""}>{dlq?.count ?? 0}</b> msg{dlq?.count === 1 ? "" : "s"}
+          </span>
+          <button
+            onClick={reprocessDlq}
+            disabled={reprocessing || !dlq?.count}
+            style={{
+              padding: "2px 8px",
+              background: dlq?.count > 0 ? "var(--down)" : undefined,
+              color: dlq?.count > 0 ? "#fff" : undefined,
+              borderColor: dlq?.count > 0 ? "var(--down)" : undefined,
+            }}
+          >
+            {reprocessing ? "Reprocessing..." : "Reprocess DLQ"}
+          </button>
+        </div>
+      </div>
       <input placeholder="lọc theo correlationId / tripId / eventType" value={filter} onChange={(e) => setFilter(e.target.value)} />
       {replayed && <p className={replayed.ok ? "up" : "down"}>replay: {replayed.status} {JSON.stringify(replayed.data)}</p>}
       <table>
