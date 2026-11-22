@@ -99,6 +99,27 @@ class NotificationEventsTest {
     }
 
     @Test
+    void driverArrivedTellsPassengerTheDriverIsAtPickup() {
+        UUID passengerId = UUID.randomUUID();
+        UUID driverId = UUID.randomUUID();
+        EventEnvelope<Map<String, Object>> event = new EventEnvelope<>(
+                UUID.randomUUID(), "trip.driver-arrived", 1, UUID.randomUUID(), null,
+                UUID.randomUUID().toString(), "trip-service", Instant.now(),
+                Map.of("passengerId", passengerId.toString(), "driverId", driverId.toString())
+        );
+
+        events.handle(event);
+
+        ArgumentCaptor<Notification> notiCaptor = ArgumentCaptor.forClass(Notification.class);
+        verify(repository, times(2)).save(notiCaptor.capture());
+        assertThat(notiCaptor.getAllValues())
+                .filteredOn(n -> n.recipientId().equals(passengerId))
+                .singleElement()
+                .extracting(Notification::message)
+                .isEqualTo("Tài xế đã đến điểm đón. Vui lòng ra xe.");
+    }
+
+    @Test
     void recordsNotificationForPassengerOnlyWhenDriverIdNull() {
         UUID passengerId = UUID.randomUUID();
         EventEnvelope<Map<String, Object>> event = new EventEnvelope<>(

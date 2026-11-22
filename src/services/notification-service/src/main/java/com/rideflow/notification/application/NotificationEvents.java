@@ -113,6 +113,9 @@ public class NotificationEvents {
             case "trip.accepted" -> "passenger".equals(target)
                     ? "Tài xế đã nhận chuyến và đang đến điểm đón."
                     : "Bạn đã nhận chuyến đi thành công.";
+            case "trip.driver-arrived" -> "passenger".equals(target)
+                    ? "Tài xế đã đến điểm đón. Vui lòng ra xe."
+                    : "Bạn đã báo đến điểm đón, chờ khách lên xe.";
             case "trip.started" -> "passenger".equals(target)
                     ? "Chuyến đi đã bắt đầu. Chúc bạn có một hành trình an toàn!"
                     : "Chuyến đi đã bắt đầu.";
