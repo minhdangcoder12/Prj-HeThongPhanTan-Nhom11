@@ -28,13 +28,25 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 RESULTS_FILE="$TMP_DIR/results.txt"
 > "$RESULTS_FILE"
 
+# Login first as seeded passenger1 to obtain JWT Bearer token
+LOGIN_RESP=$(curl -s -X POST -H 'Content-Type: application/json' -d '{"email":"passenger1@rideflow.demo","password":"demo1234"}' "$GW/api/auth/login")
+TOKEN=$(printf '%s' "$LOGIN_RESP" | grep -o '"token":"\?[^",}]*' | head -1 | sed -E 's/"token":"?//')
+
+if [ -z "$TOKEN" ]; then
+  echo "WARN: Failed to log in as passenger1@rideflow.demo; proceeding without token (may fail if auth is required)"
+else
+  echo "Authenticated as passenger1@rideflow.demo (JWT obtained)."
+fi
+
 send_request() {
-  local id="$1"
-  local passenger="00000000-0000-4000-8000-$(printf '%012x' "$id")"
-  local payload="{\"passengerId\":\"$passenger\",\"pickup\":{\"lat\":10.7765,\"lng\":106.7010},\"dropoff\":{\"lat\":10.7626,\"lng\":106.6602}}"
+  local payload='{"pickup":{"lat":10.7765,"lng":106.7010},"dropoff":{"lat":10.7626,"lng":106.6602}}'
   
+  local auth_header=()
+  [ -n "$TOKEN" ] && auth_header=(-H "Authorization: Bearer $TOKEN")
+
   local out
   out=$(curl -s -w "%{http_code} %{time_total}\n" -o /dev/null -X POST \
+    "${auth_header[@]}" \
     -H 'Content-Type: application/json' \
     -d "$payload" \
     "$GW/api/trips" 2>/dev/null)

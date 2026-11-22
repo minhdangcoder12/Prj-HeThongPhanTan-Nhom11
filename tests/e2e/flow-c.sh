@@ -4,8 +4,6 @@
 cd "$(dirname "$0")/../.." || exit 1
 source tests/e2e/lib.sh
 
-PASSENGER=bbbbbbbb-0000-4000-8000-000000000003
-
 step() { # step <id> <description> <expected> <actual>
   check "$@"
   if [ "$3" != "$4" ]; then
@@ -16,12 +14,14 @@ step() { # step <id> <description> <expected> <actual>
   fi
 }
 
+as_passenger 1
+
 echo "=== Step 1: Enable chaos fail-rate = 1.0 (100% notification failures) ==="
 http PUT "/api/chaos/notification/fail-rate" '{"rate":1.0}'
 step C1 "chaos fail-rate set to 1.0" "200" "$CODE"
 
 echo "=== Step 2: Trigger an event by requesting a trip ==="
-http POST /api/trips "{\"passengerId\":\"$PASSENGER\",\"pickup\":{\"lat\":10.7765,\"lng\":106.7010},\"dropoff\":{\"lat\":10.7626,\"lng\":106.6602}}"
+http POST /api/trips '{"pickup":{"lat":10.7765,"lng":106.7010},"dropoff":{"lat":10.7626,"lng":106.6602}}'
 step C2 "trip created to emit event" "201" "$CODE"
 TRIP=$(json_field id)
 

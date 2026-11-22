@@ -1,11 +1,12 @@
 package com.rideflow.notification.adapter.out.messaging;
 
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.GetResponse;
 import com.rideflow.notification.application.port.out.DlqPort;
 import com.rideflow.notification.infrastructure.MessagingConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.AmqpAdmin;
-import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
@@ -39,19 +40,37 @@ public class RabbitDlqAdapter implements DlqPort {
         return 0;
     }
 
+    /**
+     * Chuyển toàn bộ message từ DLQ về queue chính an toàn tuyệt đối:
+     * Tắt auto-ack (basicGet với autoAck = false). Chỉ gửi basicAck xóa khỏi DLQ
+     * SAU KHI publish thành công vào queue chính.
+     * Nếu xảy ra lỗi giữa chừng, gọi basicNack(requeue=true) để đẩy message trở lại DLQ,
+     * ngăn chặn hoàn toàn nguy cơ mất message (zero message loss).
+     */
     @Override
     public int reprocess() {
-        int count = 0;
-        while (true) {
-            Message message = rabbitTemplate.receive(DLQ_QUEUE, 1000);
-            if (message == null) {
-                break;
+        Integer reprocessed = rabbitTemplate.execute(channel -> {
+            int count = 0;
+            while (true) {
+                GetResponse response = channel.basicGet(DLQ_QUEUE, false);
+                if (response == null) {
+                    break;
+                }
+                long deliveryTag = response.getEnvelope().getDeliveryTag();
+                try {
+                    channel.basicPublish("", MessagingConfig.TRIP_EVENTS_QUEUE, response.getProps(), response.getBody());
+                    channel.basicAck(deliveryTag, false);
+                    count++;
+                } catch (Exception e) {
+                    channel.basicNack(deliveryTag, false, true);
+                    log.error("Failed to reprocess message deliveryTag={} from DLQ, requeued safely", deliveryTag, e);
+                    throw e;
+                }
             }
-            // Đẩy lại message từ DLQ về queue chính để xử lý lại
-            rabbitTemplate.send("", MessagingConfig.TRIP_EVENTS_QUEUE, message);
-            count++;
-        }
-        log.info("DLQ Reprocess: moved {} messages from {} to {}", count, DLQ_QUEUE, MessagingConfig.TRIP_EVENTS_QUEUE);
+            return count;
+        });
+        int count = reprocessed != null ? reprocessed : 0;
+        log.info("DLQ Reprocess: safely moved {} messages from {} to {}", count, DLQ_QUEUE, MessagingConfig.TRIP_EVENTS_QUEUE);
         return count;
     }
 }

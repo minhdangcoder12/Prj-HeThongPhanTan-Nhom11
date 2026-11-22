@@ -20,25 +20,34 @@ step() { # step <id> <description> <expected> <actual>
 }
 
 echo "=== Setup: Only D01 is AVAILABLE, other drivers are OFFLINE ==="
+as_driver 2
 http PUT "/api/drivers/$D02/availability" '{"available":false}'
+as_driver 3
 http PUT "/api/drivers/$D03/availability" '{"available":false}'
 
+as_driver 1
 http PUT "/api/drivers/$D01/availability" '{"available":true}'
 step B1 "driver D01 is AVAILABLE" "200" "$CODE"
 
 http PUT "/api/drivers/$D01/location" '{"lat":10.7769,"lng":106.7009}'
 step B2 "driver D01 location updated" "200" "$CODE"
 
+echo "=== Authenticating Passenger A and Passenger B ==="
+as_passenger 1
+TOKEN_A="$TOKEN"
+as_passenger 2
+TOKEN_B="$TOKEN"
+
 echo "=== Requesting 2 trips concurrently for Passenger A and Passenger B ==="
-REQ_A="{\"passengerId\":\"$PASSENGER_A\",\"pickup\":{\"lat\":10.7765,\"lng\":106.7010},\"dropoff\":{\"lat\":10.7626,\"lng\":106.6602}}"
-REQ_B="{\"passengerId\":\"$PASSENGER_B\",\"pickup\":{\"lat\":10.7766,\"lng\":106.7011},\"dropoff\":{\"lat\":10.7626,\"lng\":106.6602}}"
+REQ_A="{\"pickup\":{\"lat\":10.7765,\"lng\":106.7010},\"dropoff\":{\"lat\":10.7626,\"lng\":106.6602}}"
+REQ_B="{\"pickup\":{\"lat\":10.7766,\"lng\":106.7011},\"dropoff\":{\"lat\":10.7626,\"lng\":106.6602}}"
 
 TMP_A=$(mktemp)
 TMP_B=$(mktemp)
 
-curl -s -w '\n%{http_code}' -X POST -H 'Content-Type: application/json' -d "$REQ_A" "$GW/api/trips" > "$TMP_A" &
+curl -s -w '\n%{http_code}' -X POST -H "Authorization: Bearer $TOKEN_A" -H 'Content-Type: application/json' -d "$REQ_A" "$GW/api/trips" > "$TMP_A" &
 PID_A=$!
-curl -s -w '\n%{http_code}' -X POST -H 'Content-Type: application/json' -d "$REQ_B" "$GW/api/trips" > "$TMP_B" &
+curl -s -w '\n%{http_code}' -X POST -H "Authorization: Bearer $TOKEN_B" -H 'Content-Type: application/json' -d "$REQ_B" "$GW/api/trips" > "$TMP_B" &
 PID_B=$!
 
 wait $PID_A $PID_B
