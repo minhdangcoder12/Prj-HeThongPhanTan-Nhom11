@@ -27,11 +27,13 @@ export default function App() {
           <li>
             <span className={health.error ? "dot off" : "dot"} />
             gateway
+            {health.error && <b>DOWN</b>}
           </li>
           {services.map(([svc, status]) => (
             <li key={svc} title={status}>
               <span className={status === "UP" ? "dot" : "dot off"} />
               {svc}
+              {status !== "UP" && <b>{status}</b>}
             </li>
           ))}
         </ul>
@@ -48,8 +50,8 @@ export default function App() {
           <h1>Bảng điều khiển demo</h1>
           <p className="lede">
             {down.length
-              ? `${down.join(", ")} đang DOWN: các bước liên quan sẽ dừng lại cho tới khi service chạy lại.`
-              : `${services.length} service đang chạy · mọi event trên RabbitMQ hiện trực tiếp bên dưới.`}
+              ? `${down.join(", ")} đang DOWN: các bước liên quan dừng cho tới khi service chạy lại.`
+              : `${services.length} service đang chạy · event RabbitMQ hiện trực tiếp bên dưới.`}
           </p>
         </div>
         <Journey tripId={tripId} />
@@ -87,7 +89,7 @@ export function Status({ value }) {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
 export function Id({ value }) {
   if (value == null || value === "") return <span className="dash">–</span>;
-  return UUID.test(value) ? <span className="id" title={value}>{value.slice(0, 8)}</span> : <span>{String(value)}</span>;
+  return UUID.test(value) ? <span className="id" title={value}>{value.slice(0, 8)}</span> : <span className="id-raw" title={String(value)}>{String(value)}</span>;
 }
 
 // Kết quả thô của một lệnh (R7: không giấu lỗi). Lỗi mở sẵn; thành công gói gọn, bấm để xem JSON.

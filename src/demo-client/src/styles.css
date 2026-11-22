@@ -1,16 +1,17 @@
 /* Style "framed-sheet" (taste-skill, seed 992675334): khung nhạt hình chữ L (thanh trên + cột thao tác),
-   dữ liệu trên một tờ trắng, viền 1px, không đổ bóng. Màu chỉ nằm trên dữ liệu và trạng thái. */
+   dữ liệu trên một tờ trắng, viền 1px, không đổ bóng. Màu chỉ nằm trên dữ liệu và trạng thái.
+   Cỡ chữ cho máy chiếu: thân 16px, tiêu đề 20–24px, chữ phụ ≥ 14px và đủ tương phản. */
 :root {
   color-scheme: light;
   --ground: #f2f5f7; /* khung ngả xanh xám: công cụ quan sát hệ thống */
   --surface: #ffffff;
   --raised: #f4f6f8;
   --active: #ebedee;
-  --border: #e3e6e8;
-  --rule: #eef0f1;
-  --control: #cdced1;
+  --border: #dde1e4;
+  --rule: #e9ecee;
+  --control: #b9bcc0;
   --text: #131416;
-  --muted: #5d5f60;
+  --muted: #44474a; /* 9:1 trên trắng: vẫn đọc được trên máy chiếu nhạt màu */
   --accent: #1b6c80;
   --positive: #1e7b4f;
   --negative: #c4242a;
@@ -23,39 +24,41 @@
   --radius-control: 6px;
   --radius-sheet: 16px;
   --inset: 8px;
-  --controls-width: 380px;
-  --pad: 24px;
-  --control-height: 32px;
-  font: 14px/1.5 "IBM Plex Sans", Inter, system-ui, sans-serif;
+  /* 1280 = 360 (cột) + 912 (tờ) + 8; 1920 = 460 + 1452 + 8. */
+  --controls-width: clamp(360px, 28vw, 460px);
+  --pad: 28px;
+  --control-height: 40px;
+  font: 16px/1.5 "IBM Plex Sans", Inter, system-ui, sans-serif;
   color: var(--text);
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--ground); }
-code, .id { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 13px; }
+code, .id { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 15px; }
 h1, h2, h3 { margin: 0; font-weight: 600; }
-h1 { font-size: 22px; line-height: 1.25; }
-h2 { font-size: 16px; }
-h3 { font-size: 14px; }
+h1 { font-size: 24px; line-height: 1.25; }
+h2 { font-size: 20px; line-height: 1.3; }
+h3 { font-size: 17px; }
 p { margin: 0; }
 
-/* Khung: thanh trên 48px + cột thao tác cùng nền; tờ trắng cách mép phải và dưới 8px.
-   1440 = 380 (cột) + 1052 (tờ) + 8 (inset). */
 .app {
   display: grid;
   grid-template-columns: var(--controls-width) minmax(0, 1fr);
-  grid-template-rows: 48px 1fr;
+  grid-template-rows: 52px 1fr;
   min-height: 100vh;
   padding: 0 var(--inset) var(--inset) 0;
 }
 .topbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; padding: 0 16px 0 20px; min-width: 0; }
-.brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; white-space: nowrap; }
-.scope { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.health { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 0 auto; padding: 0; list-style: none; color: var(--muted); font-size: 13px; }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 18px; white-space: nowrap; }
+.scope { color: var(--muted); font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.health { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0 0 0 auto; padding: 0; list-style: none; color: var(--muted); font-size: 15px; }
 .health li { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--positive); flex: none; }
+.health li b { color: var(--negative); font-weight: 600; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--positive); flex: none; }
 .dot.off { background: var(--negative); }
 
-.controls { display: flex; flex-direction: column; gap: 28px; padding: 16px 20px 32px; min-width: 0; }
+/* Cột thao tác theo thứ tự demo: Hành khách → Tài xế → Kịch bản lỗi, ngăn bằng một đường kẻ. */
+.controls { display: flex; flex-direction: column; padding: 12px 20px 32px; min-width: 0; }
+.controls > .panel + .panel { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); }
 .sheet {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -63,96 +66,108 @@ p { margin: 0; }
   padding: var(--pad);
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 36px;
   min-width: 0;
 }
 .title-row { display: flex; flex-direction: column; gap: 4px; }
 .lede { color: var(--muted); }
 
-/* Cột thao tác: mỗi khối là một bước của buổi demo, ngăn bằng khoảng trống. */
-.panel { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .panel > h2 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.panel-note { color: var(--muted); font-size: 13px; }
+.panel-note { color: var(--muted); font-size: 15px; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.field { display: grid; grid-template-columns: 76px 1fr 1fr; gap: 8px; align-items: center; }
-.field > span { color: var(--muted); font-size: 13px; }
-.scenario { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); }
+.field { display: grid; grid-template-columns: 84px 1fr 1fr; gap: 8px; align-items: center; }
+.field > span { color: var(--muted); font-size: 15px; }
+.scenario { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); }
 .scenario h3 { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 
-input, select, button { font: inherit; font-size: 14px; height: var(--control-height); padding: 0 10px; border-radius: var(--radius-control); min-width: 0; color: var(--text); }
+input, select, button { font: inherit; font-size: 16px; height: var(--control-height); padding: 0 12px; border-radius: var(--radius-control); min-width: 0; color: var(--text); }
 input, select { border: 1px solid var(--control); background: var(--surface); }
+input::placeholder { color: #6b6e72; }
 .row input { flex: 1 1 90px; }
 .row input[aria-label="Email"] { flex: 2 1 170px; }
 input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 button { cursor: pointer; border: 1px solid var(--control); background: var(--surface); font-weight: 500; white-space: nowrap; transition: background-color 120ms, border-color 120ms; }
-button:hover:not(:disabled) { background: var(--raised); border-color: #b5b7ba; }
+button:hover:not(:disabled) { background: var(--raised); border-color: #9a9da1; }
 button:active:not(:disabled) { background: var(--active); }
-button.primary { background: var(--text); border-color: var(--text); color: #fff; }
+/* Nút chính của mỗi khối: nền mực, nổi nhất trong cột. */
+button.primary { background: var(--text); border-color: var(--text); color: #fff; font-weight: 600; padding: 0 20px; }
 button.primary:hover:not(:disabled) { background: #33363a; border-color: #33363a; }
-button.ghost { border-color: transparent; background: transparent; color: var(--accent); padding: 0 6px; height: 26px; }
-button:disabled { opacity: 0.45; cursor: default; }
-.hint { color: var(--muted); font-size: 13px; }
-.signed-in { color: var(--positive); font-size: 13px; }
+button.ghost { border-color: transparent; background: transparent; color: var(--accent); padding: 0 6px; height: 32px; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.hint { color: var(--muted); font-size: 15px; }
+.signed-in { color: var(--positive); font-weight: 500; }
+
+/* Khối Tài xế (file của Long): chỉ thêm tên class, cỡ chữ và viền nằm ở đây. */
+.up { color: var(--positive); }
+.down { color: var(--negative); }
+.driver-trip { border: 1px solid var(--border) !important; border-radius: var(--radius-card) !important; padding: 14px 16px !important; display: flex; flex-direction: column; gap: 8px; }
+.driver-trip h3 { margin: 0 !important; }
+.driver-trip-detail { font-size: 15px !important; color: var(--muted); }
 
 /* Kết quả thô của mỗi lệnh (R7: hiện nguyên văn, kể cả ProblemDetail). */
-.result { border-radius: var(--radius-control); background: var(--raised); font-size: 13px; }
-.result summary, .result .result-head { display: flex; gap: 8px; align-items: center; padding: 6px 10px; cursor: pointer; }
-.result pre { margin: 0; padding: 0 10px 8px; max-height: 200px; overflow: auto; white-space: pre-wrap; word-break: break-all; font: 12px/1.45 "IBM Plex Mono", ui-monospace, monospace; }
+.result { border-radius: var(--radius-control); background: var(--raised); font-size: 15px; }
+.result summary, .result .result-head { display: flex; gap: 8px; align-items: center; padding: 8px 12px; cursor: pointer; }
+.result pre { margin: 0; padding: 0 12px 10px; max-height: 240px; overflow: auto; white-space: pre-wrap; word-break: break-all; font: 14px/1.45 "IBM Plex Mono", ui-monospace, monospace; }
 .result.err { background: var(--pill-negative-bg); color: var(--pill-negative-ink); }
 
-/* Trạng thái: nền nhạt, chữ đậm cùng màu; một dấu trạng thái mỗi dòng. */
-.pill { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; font-size: 12px; font-weight: 500; white-space: nowrap; flex: none; background: var(--pill-neutral-bg); color: var(--pill-neutral-ink); }
+/* Trạng thái: nền nhạt, chữ đậm cùng màu, luôn có chữ; một dấu trạng thái mỗi dòng. */
+.pill { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 13px; font-size: 14px; font-weight: 500; white-space: nowrap; flex: none; background: var(--pill-neutral-bg); color: var(--pill-neutral-ink); }
 .pill.positive { background: var(--pill-positive-bg); color: var(--pill-positive-ink); }
 .pill.negative { background: var(--pill-negative-bg); color: var(--pill-negative-ink); }
 .pill.warning { background: var(--pill-warning-bg); color: var(--pill-warning-ink); }
 .pill.accent { background: var(--pill-accent-bg); color: var(--pill-accent-ink); }
 
-/* Hành trình chuyến: khối trả lời câu hỏi chính của màn hình. */
+/* Hành trình chuyến: câu chuyện chính của màn hình, đọc đầu tiên. */
 .journey { display: flex; flex-direction: column; gap: 16px; }
-.journey-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; }
+.journey-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; }
+.journey-head h2 { font-size: 22px; }
 .steps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
-.step { display: flex; flex-direction: column; gap: 2px; padding: 12px 12px 10px; border-radius: var(--radius-card); background: var(--raised); color: var(--muted); min-width: 0; }
-.step b { font-weight: 500; font-size: 15px; }
-.step small { font: 11px "IBM Plex Mono", ui-monospace, monospace; overflow: hidden; text-overflow: ellipsis; }
+.step { display: flex; flex-direction: column; gap: 2px; padding: 12px 10px 10px; border-radius: var(--radius-card); background: var(--raised); color: var(--muted); min-width: 0; }
+.step b { font-weight: 500; font-size: 16px; line-height: 1.3; }
+.step small { font: 12px "IBM Plex Mono", ui-monospace, monospace; overflow: hidden; text-overflow: ellipsis; }
 .step.done { background: var(--pill-accent-bg); color: var(--pill-accent-ink); }
 .step.current { background: var(--accent); color: #fff; }
 .step.current b { font-weight: 600; }
-.journey-note { font-size: 15px; }
+/* Bước tiếp theo: câu đọc to nhất sau tên chuyến. */
+.journey-note { font-size: 20px; line-height: 1.4; font-weight: 500; padding: 14px 18px; border-radius: var(--radius-card); background: var(--raised); }
 .facts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0; border: 1px solid var(--border); border-radius: var(--radius-card); }
 .facts div { padding: 12px 16px; min-width: 0; }
 .facts div + div { border-left: 1px solid var(--border); }
-.facts dt { color: var(--muted); font-size: 13px; }
-.facts dd { margin: 2px 0 0; font-size: 22px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.facts dd .unit { color: var(--muted); font-size: 14px; margin-left: 3px; }
-.facts dd.id { font-size: 16px; padding-top: 6px; }
-.empty { padding: 28px 20px; border: 1px dashed var(--control); border-radius: var(--radius-card); color: var(--muted); }
+.facts dt { color: var(--muted); font-size: 15px; }
+.facts dd { margin: 2px 0 0; font-size: 24px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.facts dd .unit { color: var(--muted); font-size: 16px; margin-left: 3px; }
+.facts dd.id { font-size: 18px; padding-top: 6px; }
+.empty { padding: 24px 20px; border: 1px dashed var(--control); border-radius: var(--radius-card); color: var(--muted); }
 
 /* Bảng: đường kẻ và căn lề, không sọc, tiêu đề xám chữ thường. */
 .block { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .block-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
-.scroll { overflow: auto; max-height: 392px; border-top: 1px solid var(--border); }
+.scroll { overflow: auto; max-height: 440px; border-top: 1px solid var(--border); }
 table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
-th, td { text-align: left; padding: 0 12px; height: 40px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
-th { height: 36px; color: var(--muted); font-weight: 400; font-size: 12px; position: sticky; top: 0; background: var(--surface); }
+th, td { text-align: left; padding: 0 12px; height: 44px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th { height: 40px; color: var(--muted); font-weight: 400; font-size: 14px; position: sticky; top: 0; background: var(--surface); }
 th.num, td.num { text-align: right; }
 td .unit { color: var(--muted); margin-left: 3px; }
 .dash { color: var(--muted); }
+/* ID không phải UUID chuẩn (vd dữ liệu load test): cắt ở bảng, bản đầy đủ trong tooltip. */
+td .id-raw { display: inline-block; max-width: 14ch; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 tr.dlq td { background: var(--pill-negative-bg); }
-.tabs { display: flex; gap: 20px; border-bottom: 1px solid var(--border); overflow-x: auto; }
-.tabs button { height: 40px; padding: 0 2px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--muted); font-weight: 500; }
+.tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.tabs button { height: 44px; padding: 0 2px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--muted); font-weight: 500; }
 .tabs button:hover:not(:disabled) { background: none; color: var(--text); }
 .tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--text); font-weight: 600; }
-.tabs .count { color: var(--muted); font-weight: 400; margin-left: 4px; }
-.more { color: var(--muted); font-size: 13px; }
-.filter { width: 320px; max-width: 100%; }
+.tabs .count { color: var(--muted); font-weight: 400; margin-left: 6px; }
+.more { color: var(--muted); font-size: 15px; }
+.filter { width: 380px; max-width: 100%; }
 
 /* Máy tính bảng và điện thoại: khung biến mất, tờ trắng thành màn hình, cột thao tác lên trước. */
 @media (max-width: 1100px) {
-  :root { --controls-width: 340px; }
   .steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .facts div:nth-child(4) { border-left: 0; }
   .facts div:nth-child(n + 4) { border-top: 1px solid var(--border); }
+  .facts div:nth-child(5) { grid-column: span 2; }
 }
 @media (max-width: 820px) {
   .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; padding: 0; }
@@ -165,6 +180,9 @@ tr.dlq td { background: var(--pill-negative-bg); }
   .facts div:nth-child(n) { border-left: 0; border-top: 1px solid var(--border); }
   .facts div:nth-child(-n + 2) { border-top: 0; }
   .facts div:nth-child(even) { border-left: 1px solid var(--border); }
+  .facts div:nth-child(5) { grid-column: 1 / -1; }
+  .journey-note { font-size: 18px; }
   .filter { width: 100%; }
+  input, select, button { height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

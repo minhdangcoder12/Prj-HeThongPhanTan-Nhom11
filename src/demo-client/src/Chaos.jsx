@@ -29,11 +29,11 @@ export default function Chaos({ token }) {
   return (
     <section className="panel" aria-labelledby="chaos-title">
       <h2 id="chaos-title">Kịch bản lỗi</h2>
-      {!token && <p className="hint">Cần đăng nhập ở Hành khách trước: mọi lệnh ghi đều cần token.</p>}
+      {!token && <p className="hint">Cần đăng nhập Hành khách trước (lệnh ghi cần token).</p>}
 
       <div className="scenario">
         <h3>Flow B · Hai khách cùng lúc</h3>
-        <p className="panel-note">Đặt 2 chuyến song song gần D01: chỉ một chuyến giữ được tài xế (UPDATE nguyên tử).</p>
+        <p className="panel-note">2 chuyến song song gần D01: chỉ một chuyến giữ được tài xế (UPDATE nguyên tử).</p>
         <div className="row">
           <button onClick={flowB}>Đặt 2 chuyến cùng lúc</button>
         </div>
@@ -44,7 +44,7 @@ export default function Chaos({ token }) {
           Flow C · Retry rồi vào DLQ
           <span className={dlq?.count > 0 ? "pill negative" : "pill"}>DLQ {dlq?.count ?? 0}</span>
         </h3>
-        <p className="panel-note">notification-service lỗi theo tỉ lệ; thử lại 2s → 5s → 10s rồi chuyển message vào DLQ.</p>
+        <p className="panel-note">notification-service lỗi theo tỉ lệ: thử lại 2s → 5s → 10s rồi vào DLQ.</p>
         <div className="row">
           <input aria-label="Tỉ lệ lỗi notification (0 đến 1)" value={rate} onChange={(e) => setRate(e.target.value)} />
           <button onClick={() => run("PUT", "/api/chaos/notification/fail-rate", { rate: Number(rate) })}>Đặt tỉ lệ lỗi</button>
@@ -56,7 +56,7 @@ export default function Chaos({ token }) {
 
       <div className="scenario">
         <h3>Flow D · Event trùng</h3>
-        <p className="panel-note">Bấm “Gửi lại” trên một event ở bảng Event: cùng eventId, inbox bỏ qua, không có thông báo thứ hai.</p>
+        <p className="panel-note">Bấm Gửi lại trên một event: cùng eventId, inbox bỏ qua, không có thông báo thứ hai.</p>
         <div className="row">
           <button onClick={() => run("POST", "/api/monitor/test-event")}>Gửi event test</button>
         </div>
@@ -64,10 +64,10 @@ export default function Chaos({ token }) {
 
       <div className="scenario">
         <h3>Flow E · Saga bù trừ</h3>
-        <p className="panel-note">Bật lỗi gán chuyến: saga đã giữ tài xế phải nhả lại và kết thúc COMPENSATED.</p>
+        <p className="panel-note">Lỗi gán chuyến: saga nhả tài xế đã giữ và kết thúc COMPENSATED.</p>
         <div className="row">
           <button onClick={() => run("PUT", "/api/chaos/trip/fail-assign", { enabled: true })}>Bật lỗi gán chuyến</button>
-          <button onClick={() => run("PUT", "/api/chaos/trip/fail-assign", { enabled: false })}>Tắt</button>
+          <button onClick={() => run("PUT", "/api/chaos/trip/fail-assign", { enabled: false })}>Tắt lỗi gán chuyến</button>
         </div>
       </div>
 

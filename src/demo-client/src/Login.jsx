@@ -26,7 +26,7 @@ export default function Login({ defaultEmail, session, onSession }) {
       <div className="row">
         <input aria-label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
         <input aria-label="Mật khẩu" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        <button onClick={login}>Đăng nhập</button>
+        <button className="primary" onClick={login}>Đăng nhập</button>
       </div>
       {result && !result.ok && <Result r={result} />}
     </>

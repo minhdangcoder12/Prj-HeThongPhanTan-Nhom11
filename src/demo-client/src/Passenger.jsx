@@ -35,9 +35,9 @@ export default function Passenger({ session, onSession, tripId, onTrip }) {
         <button className="primary" onClick={requestTrip} disabled={!session}>
           Đặt xe
         </button>
-        <input aria-label="Theo dõi chuyến theo tripId" className="id" placeholder="hoặc dán tripId để theo dõi" value={tripId} onChange={(e) => onTrip(e.target.value.trim())} />
+        <input aria-label="Theo dõi chuyến theo tripId" className="id" placeholder="hoặc dán tripId" value={tripId} onChange={(e) => onTrip(e.target.value.trim())} />
       </div>
-      {!session && <p className="hint">Đăng nhập để đặt xe: gateway từ chối lệnh ghi không có token (401).</p>}
+      {!session && <p className="hint">Cần đăng nhập trước khi đặt xe (không có token → 401).</p>}
       <Result r={result} />
     </section>
   );
