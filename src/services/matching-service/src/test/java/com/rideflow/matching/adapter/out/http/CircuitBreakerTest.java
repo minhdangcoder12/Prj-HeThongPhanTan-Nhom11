@@ -16,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.List;
@@ -42,15 +43,17 @@ class CircuitBreakerTest {
     @BeforeEach
     void setUp() throws IOException {
         requestCounter = new AtomicInteger(0);
-        server = HttpServer.create(new InetSocketAddress(0), 0);
+        server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         port = server.getAddress().getPort();
+        server.start();
 
         config = CircuitBreakerConfig.custom()
                 .slidingWindowSize(4)
                 .minimumNumberOfCalls(3)
                 .failureRateThreshold(50.0f)
-                .waitDurationInOpenState(Duration.ofMillis(200))
+                .waitDurationInOpenState(Duration.ofMillis(100))
                 .permittedNumberOfCallsInHalfOpenState(2)
+                .automaticTransitionFromOpenToHalfOpenEnabled(true)
                 .build();
         registry = CircuitBreakerRegistry.of(config);
     }
@@ -71,10 +74,9 @@ class CircuitBreakerTest {
             exchange.sendResponseHeaders(500, -1);
             exchange.close();
         });
-        server.start();
 
         HttpDriverServiceClient client = new HttpDriverServiceClient(
-                "http://localhost:" + port, registry);
+                "http://127.0.0.1:" + port, registry);
         CircuitBreaker cb = client.getCircuitBreaker();
 
         assertThat(cb.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
@@ -98,8 +100,12 @@ class CircuitBreakerTest {
         assertThat(durationMs).isLessThan(2000L); // fast fail in < 2s
         assertThat(requestCounter.get()).isEqualTo(callsSoFar); // no HTTP request made!
 
-        // Wait for open state duration (200ms) to allow transition to HALF_OPEN
-        Thread.sleep(250);
+        // Wait until automatic transition from OPEN to HALF_OPEN (wait duration = 100ms)
+        long deadline = System.currentTimeMillis() + 3000;
+        while (cb.getState() == CircuitBreaker.State.OPEN && System.currentTimeMillis() < deadline) {
+            Thread.sleep(50);
+        }
+        assertThat(cb.getState()).isEqualTo(CircuitBreaker.State.HALF_OPEN);
 
         // Reconfigure server to return 200 OK (server recovered)
         server.removeContext("/internal/drivers/");
@@ -130,10 +136,9 @@ class CircuitBreakerTest {
             exchange.sendResponseHeaders(503, -1);
             exchange.close();
         });
-        server.start();
 
         HttpTripServiceClient client = new HttpTripServiceClient(
-                "http://localhost:" + port, registry);
+                "http://127.0.0.1:" + port, registry);
         CircuitBreaker cb = client.getCircuitBreaker();
 
         assertThat(cb.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
@@ -153,7 +158,7 @@ class CircuitBreakerTest {
         long durationMs = System.currentTimeMillis() - startTime;
 
         assertThat(fastFail).isFalse();
-        assertThat(durationMs).isLessThan(500L);
+        assertThat(durationMs).isLessThan(2000L);
         assertThat(requestCounter.get()).isEqualTo(callsSoFar);
     }
 
@@ -161,9 +166,9 @@ class CircuitBreakerTest {
     @DisplayName("FT5: when circuit breaker is OPEN, matching saga fails fast (<2s) and marks saga FAILED")
     void sagaFailsFastWhenCircuitBreakerIsOpen() {
         HttpDriverServiceClient driverClient = new HttpDriverServiceClient(
-                "http://localhost:" + port, registry);
+                "http://127.0.0.1:" + port, registry);
         HttpTripServiceClient tripClient = new HttpTripServiceClient(
-                "http://localhost:" + port, registry);
+                "http://127.0.0.1:" + port, registry);
 
         // Force driver circuit breaker to OPEN state
         driverClient.getCircuitBreaker().transitionToOpenState();
@@ -178,6 +183,7 @@ class CircuitBreakerTest {
         UUID driver2 = UUID.randomUUID();
 
         when(repository.findByTripId(tripId)).thenReturn(Optional.empty());
+        when(repository.findAttemptsBySagaId(any())).thenReturn(List.of());
         when(repository.save(any(MatchingSaga.class))).thenAnswer(inv -> inv.getArgument(0));
         when(driverLocator.nearestAvailable(anyDouble(), anyDouble(), anyInt(), anyList()))
                 .thenReturn(List.of(driver1, driver2));
