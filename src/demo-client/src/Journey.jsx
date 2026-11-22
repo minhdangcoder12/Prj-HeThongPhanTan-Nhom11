@@ -15,12 +15,12 @@ const STEPS = [
 const NEXT = {
   REQUESTED: "Saga đang tìm tài xế rảnh gần điểm đón…",
   MATCHING: "Tài xế vừa từ chối, saga đang tìm tài xế khác.",
-  DRIVER_ASSIGNED: "Tiếp theo: ở khối Tài xế, đăng nhập và bấm Accept (hoặc Reject để xem saga tìm người khác).",
-  ACCEPTED: "Tiếp theo: tài xế bấm Start khi đón được khách.",
-  IN_PROGRESS: "Tiếp theo: tài xế bấm Complete; payment-service sẽ tự thu tiền.",
-  COMPLETED: "payment-service đang thu tiền: vài giây nữa chuyến chuyển sang Đã thanh toán.",
-  PAID: "Chuyến đã xong. Có thể đặt chuyến mới hoặc chạy một kịch bản lỗi.",
-  NO_DRIVER: "Không còn tài xế phù hợp, chuyến dừng ở đây. Bật D01 và đặt vị trí gần điểm đón ở khối Tài xế rồi đặt lại.",
+  DRIVER_ASSIGNED: "Tiếp theo: khối Tài xế → đăng nhập → bấm Nhận chuyến (hoặc Từ chối để saga tìm người khác).",
+  ACCEPTED: "Tiếp theo: tài xế bấm Bắt đầu khi đón được khách.",
+  IN_PROGRESS: "Tiếp theo: tài xế bấm Hoàn thành; payment-service tự thu tiền.",
+  COMPLETED: "payment-service đang thu tiền, vài giây nữa sang Đã thanh toán.",
+  PAID: "Chuyến đã xong. Đặt chuyến mới hoặc chạy một kịch bản lỗi.",
+  NO_DRIVER: "Không còn tài xế phù hợp. Ở khối Tài xế: Bật nhận chuyến cho D01, đặt vị trí gần điểm đón, rồi đặt xe lại.",
   PAYMENT_FAILED: "Thanh toán thất bại: payment-service báo payment.failed.",
   CANCELLED: "Chuyến đã huỷ.",
 };
@@ -37,7 +37,7 @@ export default function Journey({ tripId }) {
     return (
       <section className="journey" aria-labelledby="journey-title">
         <h2 id="journey-title">Chuyến đang theo dõi</h2>
-        <p className="empty">Chưa có chuyến. Đăng nhập hành khách ở cột trái và bấm Đặt xe: từng bước của chuyến sẽ hiện ở đây.</p>
+        <p className="empty">Chưa có chuyến. Đăng nhập Hành khách ở cột trái rồi bấm Đặt xe.</p>
       </section>
     );
   }
