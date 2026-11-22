@@ -150,6 +150,12 @@ export default function Driver({ session, onSession }) {
               </button>
               <button
                 disabled={!tripId}
+                onClick={() => run("POST", `/api/trips/${tripId}/arrive`)}
+              >
+                Đã đến điểm đón
+              </button>
+              <button
+                disabled={!tripId}
                 onClick={() => run("POST", `/api/trips/${tripId}/start`)}
               >
                 Bắt đầu

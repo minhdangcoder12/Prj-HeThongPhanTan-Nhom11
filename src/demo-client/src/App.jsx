@@ -77,7 +77,7 @@ const TONE = {
   positive: ["PAID", "COMPLETED", "AVAILABLE", "SENT", "SUCCEEDED"],
   negative: ["NO_DRIVER", "PAYMENT_FAILED", "FAILED", "CANCELLED"],
   warning: ["REQUESTED", "MATCHING", "RESERVED", "PENDING", "STARTED", "CANDIDATE_SELECTED", "DRIVER_RESERVED", "COMPENSATING", "COMPENSATED"],
-  accent: ["DRIVER_ASSIGNED", "ACCEPTED", "IN_PROGRESS", "ON_TRIP", "TRIP_ASSIGNED"],
+  accent: ["DRIVER_ASSIGNED", "ACCEPTED", "ARRIVED", "IN_PROGRESS", "ON_TRIP", "TRIP_ASSIGNED"],
 };
 export function Status({ value }) {
   if (!value) return <span className="dash">–</span>;
