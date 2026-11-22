@@ -28,6 +28,8 @@ const money = (v) => Number(v).toLocaleString("vi-VN");
 
 export default function Journey({ tripId }) {
   const [trip, setTrip] = useState(null);
+  const [drivers, setDrivers] = useState([]);
+  useEffect(() => poll("/api/drivers", (d) => Array.isArray(d) && setDrivers(d), 3000), []);
   useEffect(() => {
     setTrip(null);
     return tripId ? poll(`/api/trips/${tripId}`, setTrip) : undefined;
@@ -72,8 +74,18 @@ export default function Journey({ tripId }) {
       <dl className="facts">
         <div>
           <dt>Tài xế</dt>
-          <dd className="id">
-            <Id value={trip.driverId} />
+          <dd className="driver-name">
+            {(() => {
+              const d = drivers.find((x) => x.id === trip.driverId);
+              return d ? (
+                <>
+                  {d.fullName}
+                  <small className="plate">{d.vehiclePlate}</small>
+                </>
+              ) : (
+                <Id value={trip.driverId} />
+              );
+            })()}
           </dd>
         </div>
         <div>

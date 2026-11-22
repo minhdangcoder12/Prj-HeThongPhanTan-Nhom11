@@ -186,3 +186,6 @@ tr.dlq td { background: var(--pill-negative-bg); }
   input, select, button { height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.facts dd.driver-name { font-size: 18px; padding-top: 4px; white-space: normal; }
+.facts dd .plate { display: block; color: var(--muted); font-size: 15px; font-family: "IBM Plex Mono", ui-monospace, monospace; }

@@ -89,7 +89,10 @@ export function Status({ value }) {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
 export function Id({ value }) {
   if (value == null || value === "") return <span className="dash">–</span>;
-  return UUID.test(value) ? <span className="id" title={value}>{value.slice(0, 8)}</span> : <span className="id-raw" title={String(value)}>{String(value)}</span>;
+  if (!UUID.test(value)) return <span className="id-raw" title={String(value)}>{String(value)}</span>;
+  // ID mẫu (00000000-0000-…-0000000000d1) giống nhau ở đầu, nên hiện phần đuôi để phân biệt.
+  const shown = value.startsWith("00000000-0000") ? `…${value.slice(-4)}` : value.slice(0, 8);
+  return <span className="id" title={value}>{shown}</span>;
 }
 
 // Kết quả thô của một lệnh (R7: không giấu lỗi). Lỗi mở sẵn; thành công gói gọn, bấm để xem JSON.
