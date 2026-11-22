@@ -74,8 +74,10 @@ paths:
     post: { x-phase: 1, summary: "DRIVER only. Driver accepts: DRIVER_ASSIGNED -> ACCEPTED", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "401": { $ref: "#/components/responses/Problem" }, "403": { $ref: "#/components/responses/Problem" }, "409": { $ref: "#/components/responses/Problem" } } }
   /api/trips/{id}/reject:
     post: { x-phase: 1, summary: "DRIVER only. Driver rejects: DRIVER_ASSIGNED -> MATCHING, emits trip.driver-rejected (payload.driverId = rejecting driver)", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "401": { $ref: "#/components/responses/Problem" }, "403": { $ref: "#/components/responses/Problem" }, "409": { $ref: "#/components/responses/Problem" } } }
+  /api/trips/{id}/arrive:
+    post: { x-phase: 1, summary: "DRIVER only. Driver reached pickup: ACCEPTED -> ARRIVED, emits trip.driver-arrived. 409 from any other status", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "401": { $ref: "#/components/responses/Problem" }, "403": { $ref: "#/components/responses/Problem" }, "409": { $ref: "#/components/responses/Problem" } } }
   /api/trips/{id}/start:
-    post: { x-phase: 1, summary: "DRIVER only. ACCEPTED -> IN_PROGRESS", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "401": { $ref: "#/components/responses/Problem" }, "403": { $ref: "#/components/responses/Problem" }, "409": { $ref: "#/components/responses/Problem" } } }
+    post: { x-phase: 1, summary: "DRIVER only. ARRIVED -> IN_PROGRESS (409 from ACCEPTED: driver must arrive first)", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "401": { $ref: "#/components/responses/Problem" }, "403": { $ref: "#/components/responses/Problem" }, "409": { $ref: "#/components/responses/Problem" } } }
   /api/trips/{id}/complete:
     post: { x-phase: 1, summary: "DRIVER only. IN_PROGRESS -> COMPLETED, emits trip.completed", parameters: [ { $ref: "#/components/parameters/Id" } ], responses: { "200": { description: Trip }, "401": { $ref: "#/components/responses/Problem" }, "403": { $ref: "#/components/responses/Problem" }, "409": { $ref: "#/components/responses/Problem" } } }
 
