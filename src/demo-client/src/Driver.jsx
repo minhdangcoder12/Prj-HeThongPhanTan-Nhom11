@@ -43,7 +43,7 @@ export default function Driver({ session, onSession }) {
 
   return (
     <div className="panel">
-      <h2>Driver Panel</h2>
+      <h2>Tài xế</h2>
       <Login defaultEmail="driver1@rideflow.demo" session={session} onSession={onSession} />
       <select value={driverId} onChange={(e) => setDriverId(e.target.value)}>
         <option value="">-- chọn tài xế --</option>
@@ -72,13 +72,13 @@ export default function Driver({ session, onSession }) {
               disabled={me.status === "AVAILABLE"}
               onClick={() => availability(true)}
             >
-              🟢 Bật Online
+              Bật nhận chuyến
             </button>
             <button
               disabled={me.status === "OFFLINE"}
               onClick={() => availability(false)}
             >
-              🔴 Tắt Offline
+              Nghỉ (offline)
             </button>
           </div>
 

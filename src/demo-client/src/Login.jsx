@@ -14,13 +14,19 @@ export default function Login({ defaultEmail, session, onSession }) {
     if (r.ok) onSession(r.data);
   }
 
+  if (session) {
+    return (
+      <p className="signed-in">
+        Đã đăng nhập {email} · {session.role}
+      </p>
+    );
+  }
   return (
     <>
       <div className="row">
-        <input style={{ width: "170px" }} value={email} onChange={(e) => setEmail(e.target.value)} />
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <input aria-label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input aria-label="Mật khẩu" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         <button onClick={login}>Đăng nhập</button>
-        {session && <span className="up">{session.role} · {session.userId.slice(0, 8)}</span>}
       </div>
       {result && !result.ok && <Result r={result} />}
     </>

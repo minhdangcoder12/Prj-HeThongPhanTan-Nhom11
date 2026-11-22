@@ -7,56 +7,71 @@ const trip = () => ({
   dropoff: { lat: 10.7626, lng: 106.6602 },
 });
 
-// Demo-only triggers for flows B-E. Chaos endpoints exist only with SPRING_PROFILES_ACTIVE=demo.
+// Kịch bản lỗi B–E. Endpoint chaos chỉ có khi SPRING_PROFILES_ACTIVE=demo.
 export default function Chaos({ token }) {
   const [result, setResult] = useState(null);
   const [rate, setRate] = useState("1");
-  const run = async (method, path, body) => setResult(await api(method, path, body, token));
   const [dlq, setDlq] = useState({ count: 0 });
+  const run = async (method, path, body) => setResult(await api(method, path, body, token));
 
-  useEffect(() => {
-    return poll("/api/notifications/dlq", (d) => d && setDlq(d), 3000);
-  }, []);
+  useEffect(() => poll("/api/notifications/dlq", (d) => d && setDlq(d), 3000), []);
 
   async function flowB() {
-    const [a, b] = await Promise.all([
-      api("POST", "/api/trips", trip(), token),
-      api("POST", "/api/trips", trip(), token),
-    ]);
+    const [a, b] = await Promise.all([api("POST", "/api/trips", trip(), token), api("POST", "/api/trips", trip(), token)]);
     setResult({
       ok: a.ok && b.ok,
       status: `${a.status} / ${b.status}`,
       correlationId: a.correlationId,
-      data: { passengerA: a.data, passengerB: b.data },
+      data: { tripA: a.data, tripB: b.data },
     });
   }
 
   return (
-    <div className="panel">
-      <h2>Kịch bản demo</h2>
-      {!token && <p className="hint">Cần đăng nhập ở Passenger trước (ghi/chaos đều cần token).</p>}
-      <div className="row">
-        <button onClick={() => run("POST", "/api/monitor/test-event")}>Gửi event test</button>
-        <button onClick={flowB}>Flow B: 2 khách cùng lúc</button>
+    <section className="panel" aria-labelledby="chaos-title">
+      <h2 id="chaos-title">Kịch bản lỗi</h2>
+      {!token && <p className="hint">Cần đăng nhập ở Hành khách trước: mọi lệnh ghi đều cần token.</p>}
+
+      <div className="scenario">
+        <h3>Flow B · Hai khách cùng lúc</h3>
+        <p className="panel-note">Đặt 2 chuyến song song gần D01: chỉ một chuyến giữ được tài xế (UPDATE nguyên tử).</p>
+        <div className="row">
+          <button onClick={flowB}>Đặt 2 chuyến cùng lúc</button>
+        </div>
       </div>
-      <div className="row">
-        Flow E
-        <button onClick={() => run("PUT", "/api/chaos/trip/fail-assign", { enabled: true })}>Bật lỗi assign</button>
-        <button onClick={() => run("PUT", "/api/chaos/trip/fail-assign", { enabled: false })}>Tắt</button>
+
+      <div className="scenario">
+        <h3>
+          Flow C · Retry rồi vào DLQ
+          <span className={dlq?.count > 0 ? "pill negative" : "pill"}>DLQ {dlq?.count ?? 0}</span>
+        </h3>
+        <p className="panel-note">notification-service lỗi theo tỉ lệ; thử lại 2s → 5s → 10s rồi chuyển message vào DLQ.</p>
+        <div className="row">
+          <input aria-label="Tỉ lệ lỗi notification (0 đến 1)" value={rate} onChange={(e) => setRate(e.target.value)} />
+          <button onClick={() => run("PUT", "/api/chaos/notification/fail-rate", { rate: Number(rate) })}>Đặt tỉ lệ lỗi</button>
+          <button onClick={() => run("POST", "/api/notifications/dlq/reprocess")} disabled={!dlq?.count}>
+            Đẩy lại DLQ
+          </button>
+        </div>
       </div>
-      <div className="row">
-        Flow C fail-rate
-        <input value={rate} onChange={(e) => setRate(e.target.value)} />
-        <button onClick={() => run("PUT", "/api/chaos/notification/fail-rate", { rate: Number(rate) })}>Áp dụng</button>
+
+      <div className="scenario">
+        <h3>Flow D · Event trùng</h3>
+        <p className="panel-note">Bấm “Gửi lại” trên một event ở bảng Event: cùng eventId, inbox bỏ qua, không có thông báo thứ hai.</p>
+        <div className="row">
+          <button onClick={() => run("POST", "/api/monitor/test-event")}>Gửi event test</button>
+        </div>
       </div>
-      <div className="row">
-        DLQ: <b>{dlq?.count ?? 0}</b> tin nhắn
-        <button onClick={() => run("POST", "/api/notifications/dlq/reprocess")} disabled={!dlq?.count}>
-          Reprocess DLQ
-        </button>
+
+      <div className="scenario">
+        <h3>Flow E · Saga bù trừ</h3>
+        <p className="panel-note">Bật lỗi gán chuyến: saga đã giữ tài xế phải nhả lại và kết thúc COMPENSATED.</p>
+        <div className="row">
+          <button onClick={() => run("PUT", "/api/chaos/trip/fail-assign", { enabled: true })}>Bật lỗi gán chuyến</button>
+          <button onClick={() => run("PUT", "/api/chaos/trip/fail-assign", { enabled: false })}>Tắt</button>
+        </div>
       </div>
-      <p className="hint">Flow D: bấm “replay” trên một event ở Monitor (gửi lại cùng eventId).</p>
+
       <Result r={result} />
-    </div>
+    </section>
   );
 }
