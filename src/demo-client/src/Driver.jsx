@@ -43,7 +43,7 @@ export default function Driver({ session, onSession }) {
 
   return (
     <div className="panel">
-      <h2>Driver Panel</h2>
+      <h2>Tài xế</h2>
       <Login defaultEmail="driver1@rideflow.demo" session={session} onSession={onSession} />
       <select value={driverId} onChange={(e) => setDriverId(e.target.value)}>
         <option value="">-- chọn tài xế --</option>
@@ -62,7 +62,7 @@ export default function Driver({ session, onSession }) {
               {me.status}
             </b>
             {me.currentTripId && (
-              <span> · Trip: <code>{me.currentTripId.slice(0, 8)}</code></span>
+              <span> · Chuyến: <code>{me.currentTripId.slice(0, 8)}</code></span>
             )}
           </p>
 
@@ -72,13 +72,13 @@ export default function Driver({ session, onSession }) {
               disabled={me.status === "AVAILABLE"}
               onClick={() => availability(true)}
             >
-              🟢 Bật Online
+              Bật nhận chuyến
             </button>
             <button
               disabled={me.status === "OFFLINE"}
               onClick={() => availability(false)}
             >
-              🔴 Tắt Offline
+              Nghỉ (offline)
             </button>
           </div>
 
@@ -86,12 +86,12 @@ export default function Driver({ session, onSession }) {
           <div className="row">
             <span>Vị trí:</span>
             <input
-              placeholder="lat"
+              placeholder="vĩ độ"
               value={loc.lat}
               onChange={(e) => setLoc({ ...loc, lat: e.target.value })}
             />
             <input
-              placeholder="lng"
+              placeholder="kinh độ"
               value={loc.lng}
               onChange={(e) => setLoc({ ...loc, lng: e.target.value })}
             />
@@ -127,11 +127,11 @@ export default function Driver({ session, onSession }) {
           </div>
 
           {/* Active Trip Actions (Full lifecycle) */}
-          <div style={{ marginTop: "10px", padding: "8px", border: "1px dashed var(--border)", borderRadius: "4px" }}>
+          <div className="driver-trip" style={{ marginTop: "10px", padding: "8px", border: "1px dashed var(--border)", borderRadius: "4px" }}>
             <h3 style={{ margin: "0 0 6px" }}>Vòng đời chuyến xe</h3>
             <div className="row">
               <input
-                placeholder="Nhập hoặc gắn tripId"
+                placeholder="tripId"
                 value={tripId}
                 onChange={(e) => setTripId(e.target.value)}
                 style={{ width: "160px" }}
@@ -140,31 +140,31 @@ export default function Driver({ session, onSession }) {
                 disabled={!tripId}
                 onClick={() => run("POST", `/api/trips/${tripId}/accept`)}
               >
-                Accept
+                Nhận chuyến
               </button>
               <button
                 disabled={!tripId}
                 onClick={() => run("POST", `/api/trips/${tripId}/reject`)}
               >
-                Reject
+                Từ chối
               </button>
               <button
                 disabled={!tripId}
                 onClick={() => run("POST", `/api/trips/${tripId}/start`)}
               >
-                Start
+                Bắt đầu
               </button>
               <button
                 disabled={!tripId}
                 onClick={() => run("POST", `/api/trips/${tripId}/complete`)}
               >
-                Complete
+                Hoàn thành
               </button>
             </div>
 
             {trip && !trip.error && (
-              <p style={{ margin: "4px 0", fontSize: "12px" }}>
-                Chi tiết: Status <b>{trip.status}</b> · Cước: {trip.fare ? `${trip.fare.toLocaleString()} đ` : "Chưa chốt"}
+              <p className="driver-trip-detail" style={{ margin: "4px 0", fontSize: "12px" }}>
+                Chi tiết: Trạng thái <b>{trip.status}</b> · Cước: {trip.fare ? `${trip.fare.toLocaleString()} đ` : "Chưa chốt"}
               </p>
             )}
           </div>

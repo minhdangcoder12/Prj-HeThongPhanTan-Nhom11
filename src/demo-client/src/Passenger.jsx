@@ -1,51 +1,44 @@
-import { useEffect, useState } from "react";
-import { api, poll } from "./api.js";
+import { useState } from "react";
+import { api } from "./api.js";
 import { Result } from "./App.jsx";
 import Login from "./Login.jsx";
 
 const point = (p) => ({ lat: Number(p.lat), lng: Number(p.lng) });
 
-export default function Passenger({ session, onSession }) {
+// Hành khách đặt chuyến; chuyến được theo dõi ở khối "Chuyến đang theo dõi" trên tờ chính.
+export default function Passenger({ session, onSession, tripId, onTrip }) {
   const [pickup, setPickup] = useState({ lat: "10.7765", lng: "106.7010" });
   const [dropoff, setDropoff] = useState({ lat: "10.7626", lng: "106.6602" });
   const [result, setResult] = useState(null);
-  const [tripId, setTripId] = useState("");
-  const [trip, setTrip] = useState(null);
-
-  useEffect(() => (tripId ? poll(`/api/trips/${tripId}`, setTrip) : undefined), [tripId]);
 
   async function requestTrip() {
     const r = await api("POST", "/api/trips", { pickup: point(pickup), dropoff: point(dropoff) }, session?.token);
     setResult(r);
-    if (r.ok && r.data?.id) setTripId(r.data.id);
+    if (r.ok && r.data?.id) onTrip(r.data.id);
   }
 
-  return (
-    <div className="panel">
-      <h2>Passenger</h2>
-      <Login defaultEmail="passenger1@rideflow.demo" session={session} onSession={onSession} />
-      <div className="row">
-        pickup
-        <input value={pickup.lat} onChange={(e) => setPickup({ ...pickup, lat: e.target.value })} />
-        <input value={pickup.lng} onChange={(e) => setPickup({ ...pickup, lng: e.target.value })} />
-      </div>
-      <div className="row">
-        dropoff
-        <input value={dropoff.lat} onChange={(e) => setDropoff({ ...dropoff, lat: e.target.value })} />
-        <input value={dropoff.lng} onChange={(e) => setDropoff({ ...dropoff, lng: e.target.value })} />
-      </div>
-      <div className="row">
-        <button onClick={requestTrip}>Đặt xe</button>
-        <input placeholder="theo dõi tripId" value={tripId} onChange={(e) => setTripId(e.target.value)} />
-      </div>
-      {trip && !trip.error && (
-        <p>
-          Trip <code>{trip.id?.slice(0, 8)}</code>: <b>{trip.status}</b> · driver {trip.driverId?.slice(0, 8) ?? "-"}
-          {trip.fare != null && <> · cước {trip.fare.toLocaleString()} đ</>}
-          {trip.surgeMultiplier != null && <> · surge x{trip.surgeMultiplier}</>}
-        </p>
-      )}
-      <Result r={result} />
+  const coord = (label, value, set) => (
+    <div className="field">
+      <span>{label}</span>
+      <input aria-label={`${label} – vĩ độ`} value={value.lat} onChange={(e) => set({ ...value, lat: e.target.value })} />
+      <input aria-label={`${label} – kinh độ`} value={value.lng} onChange={(e) => set({ ...value, lng: e.target.value })} />
     </div>
+  );
+
+  return (
+    <section className="panel" aria-labelledby="passenger-title">
+      <h2 id="passenger-title">Hành khách</h2>
+      <Login defaultEmail="passenger1@rideflow.demo" session={session} onSession={onSession} />
+      {coord("Điểm đón", pickup, setPickup)}
+      {coord("Điểm đến", dropoff, setDropoff)}
+      <div className="row">
+        <button className="primary" onClick={requestTrip} disabled={!session}>
+          Đặt xe
+        </button>
+        <input aria-label="Theo dõi chuyến theo tripId" className="id" placeholder="hoặc dán tripId" value={tripId} onChange={(e) => onTrip(e.target.value.trim())} />
+      </div>
+      {!session && <p className="hint">Cần đăng nhập trước khi đặt xe (không có token → 401).</p>}
+      <Result r={result} />
+    </section>
   );
 }
