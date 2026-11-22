@@ -121,6 +121,11 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .now-say { flex-basis: 100%; font-size: 17px; font-weight: 500; line-height: 1.4; animation: fade-up 240ms var(--ease) both; }
 .now-meta { flex-basis: 100%; color: var(--muted); font-size: 15px; }
 button.main { width: 100%; height: 52px; font-size: 18px; }
+/* Hộp tin nhắn hành khách: tin mới nổi lên ngắn (fade-up), tắt khi reduced-motion. */
+.inbox { padding: 12px 14px; border-radius: var(--radius-card); border: 1px solid var(--passenger-tint); }
+.inbox ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
+.inbox li { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 8px; background: var(--passenger-tint); border-left: 3px solid var(--passenger); animation: fade-up 260ms var(--ease) both; }
+.inbox time { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .passenger button.primary { background: var(--passenger); border-color: var(--passenger); }
 .passenger button.primary:hover:not(:disabled) { background: var(--passenger-strong); border-color: var(--passenger-strong); }
 .driver button.primary { background: var(--driver); border-color: var(--driver); }

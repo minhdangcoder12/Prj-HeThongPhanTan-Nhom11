@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { api } from "./api.js";
+import { useEffect, useState } from "react";
+import { api, poll } from "./api.js";
 import { Result, Status } from "./App.jsx";
 import Login from "./Login.jsx";
 
@@ -25,6 +25,15 @@ export default function Passenger({ session, onSession, tripId, onTrip, tripStat
   const [pickup, setPickup] = useState({ lat: "10.7765", lng: "106.7010" });
   const [dropoff, setDropoff] = useState({ lat: "10.7626", lng: "106.6602" });
   const [result, setResult] = useState(null);
+  const [notes, setNotes] = useState([]);
+
+  useEffect(() => (session ? poll("/api/notifications", (d) => Array.isArray(d) && setNotes(d)) : setNotes([])), [session]);
+
+  // Tin nhắn server gửi cho chính hành khách này, mới nhất trước.
+  const inbox = notes
+    .filter((n) => n.recipientId === session?.userId)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+    .slice(0, 3);
 
   async function requestTrip() {
     const r = await api("POST", "/api/trips", { pickup: point(pickup), dropoff: point(dropoff) }, session?.token);
@@ -55,6 +64,24 @@ export default function Passenger({ session, onSession, tripId, onTrip, tripStat
         {tripId ? <Status value={tripStatus} /> : <span className="dash">chưa có</span>}
         <p key={say} className="now-say">{say}</p>
       </div>
+      {session && (
+        <div className="inbox" aria-live="polite">
+          <span className="now-label">Tin nhắn</span>
+          {inbox.length === 0 ? (
+            <span className="dash">chưa có</span>
+          ) : (
+            <ul>
+              {/* key = id: chỉ tin mới mount nên chỉ tin mới chạy hiệu ứng. */}
+              {inbox.map((n) => (
+                <li key={n.id}>
+                  <span>{n.message}</span>
+                  <time dateTime={n.createdAt}>{new Date(n.createdAt).toLocaleTimeString()}</time>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       {coord("Điểm đón", pickup, setPickup)}
       {coord("Điểm đến", dropoff, setDropoff)}
       <button className="primary main" onClick={requestTrip} disabled={!session}>
