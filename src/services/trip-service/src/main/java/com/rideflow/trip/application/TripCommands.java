@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -104,6 +105,33 @@ public class TripCommands {
         Trip after = trips.save(before.rejectByDriver(Instant.now()));
         publish(after, before.status(), "trip.driver-rejected", DRIVER, before.driverId());
         return after;
+    }
+
+    /**
+     * Tài xế không nhận chuyến trong hạn: xử lý như tài xế từ chối (cùng event trip.driver-rejected),
+     * matching nhả tài xế đó và chọn người tiếp theo. Hạn này phải ngắn hơn hạn giữ tài xế ở driver-service.
+     */
+    public int expireOverdueAssignments(Duration acceptTimeout) {
+        Instant before = Instant.now().minus(acceptTimeout);
+        int expired = 0;
+        for (UUID id : trips.findAssignedBefore(before)) {
+            if (expire(id, before)) {
+                expired++;
+            }
+        }
+        return expired;
+    }
+
+    /** Kiểm lại dưới khoá dòng: tài xế có thể vừa bấm Nhận chuyến sau lúc tìm danh sách. */
+    private boolean expire(UUID id, Instant before) {
+        Trip trip = load(id);
+        if (trip.status() != TripStatus.DRIVER_ASSIGNED || !trip.updatedAt().isBefore(before)) {
+            return false;
+        }
+        log.info("Driver {} did not accept trip {} in time, finding another driver", trip.driverId(), id);
+        Trip after = trips.save(trip.rejectByDriver(Instant.now()));
+        publish(after, trip.status(), "trip.driver-rejected", SYSTEM, trip.driverId());
+        return true;
     }
 
     /**

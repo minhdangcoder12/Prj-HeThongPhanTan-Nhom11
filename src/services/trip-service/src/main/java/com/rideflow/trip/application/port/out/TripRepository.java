@@ -3,6 +3,7 @@ package com.rideflow.trip.application.port.out;
 import com.rideflow.trip.domain.model.Trip;
 import com.rideflow.trip.domain.model.TripStatus;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -15,6 +16,8 @@ public interface TripRepository {
 
     /** Như findById nhưng khoá dòng tới hết transaction; dùng trước khi sửa chuyến. */
     Optional<Trip> findByIdForUpdate(UUID id);
+    /** Chuyến đã gán tài xế nhưng chưa được nhận từ trước {@code before}. */
+    List<UUID> findAssignedBefore(Instant before);
 
     Trip save(Trip trip);
 

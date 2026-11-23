@@ -8,6 +8,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -48,6 +49,11 @@ class TripPersistenceAdapter implements TripRepository {
     @Override
     public Optional<Trip> findById(UUID id) {
         return jpa.findById(id).map(TripJpaEntity::toDomain);
+    }
+
+    @Override
+    public List<UUID> findAssignedBefore(Instant before) {
+        return jpa.findIdsByStatusBefore(TripStatus.DRIVER_ASSIGNED, before);
     }
 
     @Override
