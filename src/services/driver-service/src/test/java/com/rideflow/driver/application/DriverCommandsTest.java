@@ -205,4 +205,31 @@ class DriverCommandsTest {
         assertThat(captor.getValue().eventType()).isEqualTo("driver.released");
         assertThat(captor.getValue().payload().status()).isEqualTo(DriverStatus.AVAILABLE);
     }
+
+    @Test
+    void acceptedTripPutsReservedDriverOnTripAndTellsMatching() {
+        UUID tripId = UUID.randomUUID();
+        Driver onTrip = new Driver(driverId, driver.userId(), driver.fullName(), driver.vehiclePlate(),
+                DriverStatus.ON_TRIP, tripId, null, 10.7769, 106.7009, Instant.now());
+        when(repository.startTrip(driverId, tripId)).thenReturn(true);
+        when(repository.findById(driverId)).thenReturn(Optional.of(onTrip));
+
+        commands.startTrip(driverId, tripId);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<EventEnvelope<DriverEventPayload>> captor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(outbox).append(captor.capture());
+        assertThat(captor.getValue().eventType()).isEqualTo("driver.availability-changed");
+        assertThat(captor.getValue().payload().status()).isEqualTo(DriverStatus.ON_TRIP);
+    }
+
+    @Test
+    void lateTripEventForADriverNoLongerHeldIsIgnoredWithoutThrowing() {
+        UUID tripId = UUID.randomUUID();
+        when(repository.finishTrip(driverId, tripId)).thenReturn(false);
+
+        commands.finishTrip(driverId, tripId);
+
+        verify(outbox, never()).append(any());
+    }
 }
