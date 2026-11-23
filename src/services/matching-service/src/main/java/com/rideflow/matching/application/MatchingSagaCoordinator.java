@@ -9,9 +9,12 @@ import com.rideflow.matching.application.port.out.TripServiceClient;
 import com.rideflow.matching.domain.model.MatchingAttempt;
 import com.rideflow.matching.domain.model.MatchingSaga;
 import com.rideflow.matching.domain.model.SagaStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +24,8 @@ import java.util.UUID;
 @Service
 @Transactional
 public class MatchingSagaCoordinator {
+
+    private static final Logger log = LoggerFactory.getLogger(MatchingSagaCoordinator.class);
 
     private static final String PRODUCER = "matching-service";
     private static final String EVENT_SAGA_CHANGED = "matching.saga-changed";
@@ -129,14 +134,7 @@ public class MatchingSagaCoordinator {
                 saga = saga.startCompensating("Assign driver failed");
                 saga = repository.save(saga);
                 publishSagaChanged(saga, "Assign driver failed", causationId);
-
-                String releaseIdempotencyKey = "saga-release-" + saga.id() + "-" + candidate;
-                driverServiceClient.release(candidate, saga.tripId(), releaseIdempotencyKey);
-
-                saga = saga.compensated();
-                saga = repository.save(saga);
-                publishSagaChanged(saga, "Compensated driver release", causationId);
-                return saga;
+                return compensate(saga, causationId);
             }
         }
 
@@ -145,6 +143,40 @@ public class MatchingSagaCoordinator {
         publishSagaChanged(saga, "All candidates exhausted", causationId);
         publishNoDriver(saga.tripId(), causationId);
         return saga;
+    }
+
+    /**
+     * Bù trừ: nhả tài xế đã giữ rồi báo trip không có tài xế (trip.no-driver), để chuyến không kẹt ở REQUESTED.
+     * Nhả lỗi thì saga ở lại COMPENSATING (không nuốt lỗi), SagaRecoveryJob thử lại sau.
+     */
+    MatchingSaga compensate(MatchingSaga saga, UUID causationId) {
+        try {
+            driverServiceClient.release(saga.driverId(), saga.tripId(), "saga-release-" + saga.id() + "-" + saga.driverId());
+        } catch (RuntimeException e) {
+            log.warn("Saga {} could not release driver {} yet, will retry: {}", saga.id(), saga.driverId(), e.getMessage());
+            return saga;
+        }
+        saga = repository.save(saga.compensated());
+        publishSagaChanged(saga, "Compensated driver release", causationId);
+        publishNoDriver(saga.tripId(), causationId);
+        return saga;
+    }
+
+    /**
+     * Thử lại các saga kẹt ở COMPENSATING (vd driver-service sập lúc bù trừ). Quá {@code giveUpAfter} thì
+     * driver-service đã tự nhả tài xế khi hết hạn giữ: saga kết thúc FAILED và vẫn báo trip không có tài xế.
+     */
+    public void retryCompensations(Duration giveUpAfter) {
+        Instant giveUp = Instant.now().minus(giveUpAfter);
+        for (MatchingSaga saga : repository.findByStatus(SagaStatus.COMPENSATING)) {
+            if (saga.updatedAt().isBefore(giveUp)) {
+                MatchingSaga failed = repository.save(saga.fail("Driver release kept failing; reservation expires on its own"));
+                publishSagaChanged(failed, failed.lastError(), null);
+                publishNoDriver(failed.tripId(), null);
+            } else {
+                compensate(saga, null);
+            }
+        }
     }
 
     private void publishSagaChanged(MatchingSaga saga, String reason, UUID causationId) {
