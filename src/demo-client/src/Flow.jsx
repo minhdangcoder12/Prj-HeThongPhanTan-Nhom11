@@ -179,7 +179,7 @@ export default function Flow({ tripId }) {
   }, [tripId]);
 
   const steps = useMemo(() => {
-    const all = events.filter(ofTrip(tripId)).flatMap(stepsOf).map((s, i) => ({ ...s, i }));
+    const all = events.filter(ofTrip(tripId)).flatMap((e) => stepsOf(e).map((s) => ({ ...s, ev: e.body }))).map((s, i) => ({ ...s, i }));
     return all.sort((a, b) => Date.parse(a.t) - Date.parse(b.t) || a.i - b.i);
   }, [events, tripId]);
 
@@ -242,6 +242,15 @@ export default function Flow({ tripId }) {
           </b>
         )}
       </div>
+      {/* JSON thật của event tạo ra bước này; mở ra thì giữ nguyên khi sang bước sau. */}
+      {cur && (
+        <details className="result">
+          <summary>
+            JSON event của bước này: <code>{cur.ev.eventType}</code> · eventId <code>{short(cur.ev.eventId)}</code> · correlationId <code>{short(cur.ev.correlationId)}</code>
+          </summary>
+          <pre>{JSON.stringify(cur.ev, null, 2)}</pre>
+        </details>
+      )}
 
       <div className="topo-wrap">
         <svg className="topo" width="100%" viewBox="-10 20 1140 495" role="img" aria-label="Đồ thị các service, đường đang gọi sáng lên">
