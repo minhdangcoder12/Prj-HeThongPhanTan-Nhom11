@@ -86,6 +86,10 @@ public class TripCommands {
         return move(id, driverId, "trip.accepted", t -> t.transitionTo(TripStatus.ACCEPTED, Instant.now()));
     }
 
+    public Trip arrive(UUID id, UUID driverId) {
+        return move(id, driverId, "trip.driver-arrived", t -> t.transitionTo(TripStatus.ARRIVED, Instant.now()));
+    }
+
     public Trip start(UUID id, UUID driverId) {
         return move(id, driverId, "trip.started", t -> t.transitionTo(TripStatus.IN_PROGRESS, Instant.now()));
     }

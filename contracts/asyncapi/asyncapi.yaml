@@ -14,6 +14,7 @@ channels:
   trip.created:                { address: trip.created,                x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
   trip.driver-assigned:        { address: trip.driver-assigned,        x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
   trip.accepted:               { address: trip.accepted,               x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
+  trip.driver-arrived:         { address: trip.driver-arrived,         x-producer: trip-service,         x-phase: 1, description: "notification-service (queue notification.trip-events.q) sends the passenger the message \"Tài xế đã đến điểm đón. Vui lòng ra xe.\"", messages: { m: { $ref: "#/components/messages/TripEvent" } } }
   trip.started:                { address: trip.started,                x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
   trip.completed:              { address: trip.completed,              x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
   trip.no-driver:              { address: trip.no-driver,              x-producer: matching-service,     x-phase: 1, description: "Saga found no driver; payload is only { tripId }. trip-service consumes it (queue trip.no-driver.q) and sets NO_DRIVER", messages: { m: { $ref: "#/components/messages/TripEvent" } } }

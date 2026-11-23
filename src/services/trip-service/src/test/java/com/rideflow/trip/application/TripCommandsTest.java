@@ -143,10 +143,35 @@ class TripCommandsTest {
     }
 
     @Test
-    void startEmitsTripStarted() {
+    void arriveEmitsTripDriverArrivedAndRecordsHistory() {
         Trip trip = stored(TripStatus.ACCEPTED);
+        assertThat(commands.arrive(trip.id(), trip.driverId()).status()).isEqualTo(TripStatus.ARRIVED);
+        EventEnvelope<TripEventPayload> event = appendedEvent();
+        assertThat(event.eventType()).isEqualTo("trip.driver-arrived");
+        verify(trips).recordTransition(trip.id(), TripStatus.ACCEPTED, TripStatus.ARRIVED, "DRIVER", event.correlationId());
+    }
+
+    @Test
+    void startEmitsTripStarted() {
+        Trip trip = stored(TripStatus.ARRIVED);
         commands.start(trip.id(), trip.driverId());
         assertThat(appendedEvent().eventType()).isEqualTo("trip.started");
+    }
+
+    @Test
+    void startBeforeArrivingAtPickupIsRefused() {
+        Trip trip = stored(TripStatus.ACCEPTED);
+
+        assertThatThrownBy(() -> commands.start(trip.id(), trip.driverId())).isInstanceOf(InvalidTripTransitionException.class);
+        verify(outbox, never()).append(any());
+    }
+
+    @Test
+    void anotherDriverCannotMarkArrival() {
+        Trip trip = stored(TripStatus.ACCEPTED);
+
+        assertThatThrownBy(() -> commands.arrive(trip.id(), UUID.randomUUID())).isInstanceOf(NotTripDriverException.class);
+        verify(trips, never()).save(any());
     }
 
     @Test

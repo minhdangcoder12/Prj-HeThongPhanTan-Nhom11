@@ -6,7 +6,8 @@ import { Id, Status } from "./App.jsx";
 const STEPS = [
   ["REQUESTED", "Đã đặt"],
   ["DRIVER_ASSIGNED", "Đã gán tài xế"],
-  ["ACCEPTED", "Tài xế nhận"],
+  ["ACCEPTED", "Đang đến điểm đón"],
+  ["ARRIVED", "Đã đến điểm đón"],
   ["IN_PROGRESS", "Đang chở"],
   ["COMPLETED", "Hoàn thành"],
   ["PAID", "Đã thanh toán"],
@@ -16,7 +17,8 @@ const NEXT = {
   REQUESTED: "Saga đang tìm tài xế rảnh gần điểm đón…",
   MATCHING: "Tài xế vừa từ chối, saga đang tìm tài xế khác.",
   DRIVER_ASSIGNED: "Tiếp theo: khối Tài xế → đăng nhập → bấm Nhận chuyến (hoặc Từ chối để saga tìm người khác).",
-  ACCEPTED: "Tiếp theo: tài xế bấm Bắt đầu khi đón được khách.",
+  ACCEPTED: "Tài xế đang đến điểm đón. Tới nơi, tài xế bấm Đã đến điểm đón.",
+  ARRIVED: "Tài xế đã tới điểm đón. Tiếp theo: bấm Bắt đầu khi khách lên xe.",
   IN_PROGRESS: "Tiếp theo: tài xế bấm Hoàn thành; payment-service tự thu tiền.",
   COMPLETED: "payment-service đang thu tiền, vài giây nữa sang Đã thanh toán.",
   PAID: "Chuyến đã xong. Đặt chuyến mới hoặc chạy một kịch bản lỗi.",
@@ -26,12 +28,15 @@ const NEXT = {
 };
 const money = (v) => Number(v).toLocaleString("vi-VN");
 
-export default function Journey({ tripId }) {
+export default function Journey({ tripId, onStatus }) {
   const [trip, setTrip] = useState(null);
+  const [drivers, setDrivers] = useState([]);
+  useEffect(() => poll("/api/drivers", (d) => Array.isArray(d) && setDrivers(d), 3000), []);
   useEffect(() => {
     setTrip(null);
     return tripId ? poll(`/api/trips/${tripId}`, setTrip) : undefined;
   }, [tripId]);
+  useEffect(() => onStatus?.(trip?.status ?? null), [trip?.status, onStatus]);
 
   if (!tripId) {
     return (
@@ -68,12 +73,22 @@ export default function Journey({ tripId }) {
           </li>
         ))}
       </ol>
-      {NEXT[trip.status] && <p className="journey-note">{NEXT[trip.status]}</p>}
+      {NEXT[trip.status] && <p key={trip.status} className="journey-note">{NEXT[trip.status]}</p>}
       <dl className="facts">
         <div>
           <dt>Tài xế</dt>
-          <dd className="id">
-            <Id value={trip.driverId} />
+          <dd className="driver-name">
+            {(() => {
+              const d = drivers.find((x) => x.id === trip.driverId);
+              return d ? (
+                <>
+                  {d.fullName}
+                  <small className="plate">{d.vehiclePlate}</small>
+                </>
+              ) : (
+                <Id value={trip.driverId} />
+              );
+            })()}
           </dd>
         </div>
         <div>

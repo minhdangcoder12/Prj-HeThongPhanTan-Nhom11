@@ -10,6 +10,7 @@ export default function App() {
   const [passenger, setPassenger] = useState(null);
   const [driver, setDriver] = useState(null);
   const [tripId, setTripId] = useState("");
+  const [tripStatus, setTripStatus] = useState(null); // status do Journey đã poll, chỉ để hiện trong thẻ Hành khách
   const [health, setHealth] = useState({});
   useEffect(() => poll("/api/monitor/health", setHealth, 3000), []);
 
@@ -40,7 +41,7 @@ export default function App() {
       </header>
 
       <aside className="controls" aria-label="Thao tác demo">
-        <Passenger session={passenger} onSession={setPassenger} tripId={tripId} onTrip={setTripId} />
+        <Passenger session={passenger} onSession={setPassenger} tripId={tripId} onTrip={setTripId} tripStatus={tripStatus} />
         <Driver session={driver} onSession={setDriver} />
         <Chaos token={passenger?.token} />
       </aside>
@@ -54,7 +55,7 @@ export default function App() {
               : `${services.length} service đang chạy · event RabbitMQ hiện trực tiếp bên dưới.`}
           </p>
         </div>
-        <Journey tripId={tripId} />
+        <Journey tripId={tripId} onStatus={setTripStatus} />
         <Monitor />
       </main>
     </div>
@@ -77,7 +78,7 @@ const TONE = {
   positive: ["PAID", "COMPLETED", "AVAILABLE", "SENT", "SUCCEEDED"],
   negative: ["NO_DRIVER", "PAYMENT_FAILED", "FAILED", "CANCELLED"],
   warning: ["REQUESTED", "MATCHING", "RESERVED", "PENDING", "STARTED", "CANDIDATE_SELECTED", "DRIVER_RESERVED", "COMPENSATING", "COMPENSATED"],
-  accent: ["DRIVER_ASSIGNED", "ACCEPTED", "IN_PROGRESS", "ON_TRIP", "TRIP_ASSIGNED"],
+  accent: ["DRIVER_ASSIGNED", "ACCEPTED", "ARRIVED", "IN_PROGRESS", "ON_TRIP", "TRIP_ASSIGNED"],
 };
 export function Status({ value }) {
   if (!value) return <span className="dash">–</span>;
@@ -89,7 +90,10 @@ export function Status({ value }) {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
 export function Id({ value }) {
   if (value == null || value === "") return <span className="dash">–</span>;
-  return UUID.test(value) ? <span className="id" title={value}>{value.slice(0, 8)}</span> : <span className="id-raw" title={String(value)}>{String(value)}</span>;
+  if (!UUID.test(value)) return <span className="id-raw" title={String(value)}>{String(value)}</span>;
+  // ID mẫu (00000000-0000-…-0000000000d1) giống nhau ở đầu, nên hiện phần đuôi để phân biệt.
+  const shown = value.startsWith("00000000-0000") ? `…${value.slice(-4)}` : value.slice(0, 8);
+  return <span className="id" title={value}>{shown}</span>;
 }
 
 // Kết quả thô của một lệnh (R7: không giấu lỗi). Lỗi mở sẵn; thành công gói gọn, bấm để xem JSON.

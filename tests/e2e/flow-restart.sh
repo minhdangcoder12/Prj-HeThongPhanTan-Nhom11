@@ -28,7 +28,7 @@ TRIP=$(json_field id)
 wait_for 20 "/api/trips/$TRIP" status DRIVER_ASSIGNED
 step S3 "driver assigned" "DRIVER_ASSIGNED" "$LAST"
 as_driver
-for action in accept start; do
+for action in accept arrive start; do
   http POST "/api/trips/$TRIP/$action"
   step S4 "driver $action" "200" "$CODE"
 done

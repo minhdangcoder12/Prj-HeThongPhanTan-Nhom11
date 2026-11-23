@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, poll } from "./api.js";
-import { Result } from "./App.jsx";
+import { Result, Status } from "./App.jsx";
 import Login from "./Login.jsx";
 
 const PRESET_LOCATIONS = [
@@ -8,6 +8,19 @@ const PRESET_LOCATIONS = [
   { label: "Landmark 81 (BT)", lat: "10.7951", lng: "106.7218" },
   { label: "Sân bay TSN (TB)", lat: "10.8185", lng: "106.6588" },
 ];
+
+// Nút nên bấm tiếp và lời nhắc, theo status chuyến server trả về (chỉ hiển thị, nút nào cũng bấm được như cũ).
+const NEXT_ACTION = {
+  DRIVER_ASSIGNED: ["accept", "Có chuyến mới: bấm Nhận chuyến hoặc Từ chối."],
+  ACCEPTED: ["arrive", "Lái tới điểm đón. Tới nơi, bấm Đã đến điểm đón."],
+  ARRIVED: ["start", "Khách lên xe thì bấm Bắt đầu."],
+  IN_PROGRESS: ["complete", "Tới điểm đến thì bấm Hoàn thành."],
+};
+const IDLE = {
+  AVAILABLE: "Đang chờ chuyến… Saga sẽ gán chuyến khi có khách gần bạn.",
+  OFFLINE: "Đang nghỉ. Bấm Bật nhận chuyến để nhận khách.",
+  RESERVED: "Đang được giữ cho một chuyến.",
+};
 
 export default function Driver({ session, onSession }) {
   const [drivers, setDrivers] = useState([]);
@@ -41,11 +54,23 @@ export default function Driver({ session, onSession }) {
   const run = async (method, path, body) => setResult(await api(method, path, body, session?.token));
   const availability = (available) => run("PUT", `/api/drivers/${driverId}/availability`, { available });
 
+  const [nextAction, nextSay] = (trip && !trip.error && NEXT_ACTION[trip.status]) || [];
+  const say = !me ? "Đăng nhập rồi chọn hồ sơ tài xế." : nextSay ?? IDLE[me.status] ?? "";
+  const tripButton = (action, label, wide = true) => (
+    <button
+      className={`${action === nextAction ? "primary main" : ""}${wide ? " wide" : ""}`}
+      disabled={!tripId}
+      onClick={() => run("POST", `/api/trips/${tripId}/${action}`)}
+    >
+      {label}
+    </button>
+  );
+
   return (
-    <div className="panel">
-      <h2>Tài xế</h2>
+    <section className="panel card driver" aria-labelledby="driver-title">
+      <h2 id="driver-title">Tài xế</h2>
       <Login defaultEmail="driver1@rideflow.demo" session={session} onSession={onSession} />
-      <select value={driverId} onChange={(e) => setDriverId(e.target.value)}>
+      <select aria-label="Hồ sơ tài xế" value={driverId} onChange={(e) => setDriverId(e.target.value)}>
         <option value="">-- chọn tài xế --</option>
         {list.map((d) => (
           <option key={d.id} value={d.id}>
@@ -54,17 +79,40 @@ export default function Driver({ session, onSession }) {
         ))}
       </select>
 
-      {me && (
-        <div style={{ marginTop: "8px" }}>
-          <p style={{ margin: "4px 0" }}>
-            Trạng thái:{" "}
-            <b className={me.status === "AVAILABLE" ? "up" : me.status === "OFFLINE" ? "down" : ""}>
-              {me.status}
-            </b>
-            {me.currentTripId && (
-              <span> · Chuyến: <code>{me.currentTripId.slice(0, 8)}</code></span>
-            )}
+      <div className="now" aria-live="polite">
+        <span className="now-label">Trạng thái</span>
+        {me ? <Status value={me.status} /> : <span className="dash">chưa chọn</span>}
+        {trip && !trip.error && (
+          <>
+            <span className="now-label">Chuyến</span>
+            <Status value={trip.status} />
+          </>
+        )}
+        <p key={say} className="now-say">{say}</p>
+        {trip && !trip.error && (
+          <p className="now-meta">
+            <code>{tripId.slice(0, 8)}</code> · Cước: {trip.fare ? `${trip.fare.toLocaleString()} đ` : "Chưa chốt"}
           </p>
+        )}
+      </div>
+
+      {me && (
+        <>
+          {/* Vòng đời chuyến: nút cần bấm tiếp được tô đậm */}
+          <div className="trip-actions">
+            <input
+              aria-label="tripId"
+              placeholder="tripId"
+              className="wide"
+              value={tripId}
+              onChange={(e) => setTripId(e.target.value)}
+            />
+            {tripButton("accept", "Nhận chuyến", false)}
+            {tripButton("reject", "Từ chối", false)}
+            {tripButton("arrive", "Đã đến điểm đón")}
+            {tripButton("start", "Bắt đầu")}
+            {tripButton("complete", "Hoàn thành")}
+          </div>
 
           {/* Quick status switch buttons */}
           <div className="row">
@@ -125,53 +173,10 @@ export default function Driver({ session, onSession }) {
               </button>
             ))}
           </div>
-
-          {/* Active Trip Actions (Full lifecycle) */}
-          <div className="driver-trip" style={{ marginTop: "10px", padding: "8px", border: "1px dashed var(--border)", borderRadius: "4px" }}>
-            <h3 style={{ margin: "0 0 6px" }}>Vòng đời chuyến xe</h3>
-            <div className="row">
-              <input
-                placeholder="tripId"
-                value={tripId}
-                onChange={(e) => setTripId(e.target.value)}
-                style={{ width: "160px" }}
-              />
-              <button
-                disabled={!tripId}
-                onClick={() => run("POST", `/api/trips/${tripId}/accept`)}
-              >
-                Nhận chuyến
-              </button>
-              <button
-                disabled={!tripId}
-                onClick={() => run("POST", `/api/trips/${tripId}/reject`)}
-              >
-                Từ chối
-              </button>
-              <button
-                disabled={!tripId}
-                onClick={() => run("POST", `/api/trips/${tripId}/start`)}
-              >
-                Bắt đầu
-              </button>
-              <button
-                disabled={!tripId}
-                onClick={() => run("POST", `/api/trips/${tripId}/complete`)}
-              >
-                Hoàn thành
-              </button>
-            </div>
-
-            {trip && !trip.error && (
-              <p className="driver-trip-detail" style={{ margin: "4px 0", fontSize: "12px" }}>
-                Chi tiết: Trạng thái <b>{trip.status}</b> · Cước: {trip.fare ? `${trip.fare.toLocaleString()} đ` : "Chưa chốt"}
-              </p>
-            )}
-          </div>
-        </div>
+        </>
       )}
 
       <Result r={result} />
-    </div>
+    </section>
   );
 }

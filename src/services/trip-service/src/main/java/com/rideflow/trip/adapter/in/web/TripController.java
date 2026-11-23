@@ -89,6 +89,13 @@ class TripController {
         return commands.accept(id, driverId);
     }
 
+    @PostMapping("/{id}/arrive")
+    Trip arrive(@PathVariable UUID id, @RequestHeader(name = "X-User-Role", required = false) String role,
+             @RequestHeader(name = "X-Driver-Id", required = false) UUID driverId) {
+        requireRole(role, "DRIVER");
+        return commands.arrive(id, driverId);
+    }
+
     @PostMapping("/{id}/start")
     Trip start(@PathVariable UUID id, @RequestHeader(name = "X-User-Role", required = false) String role,
              @RequestHeader(name = "X-Driver-Id", required = false) UUID driverId) {
