@@ -29,9 +29,9 @@ export default function Passenger({ session, onSession, tripId, onTrip, tripStat
 
   useEffect(() => (session ? poll("/api/notifications", (d) => Array.isArray(d) && setNotes(d)) : setNotes([])), [session]);
 
-  // Tin nhắn server gửi cho chính hành khách này, mới nhất trước.
+  // Tin nhắn server gửi cho hành khách này về chuyến đang theo dõi, mới nhất trước.
   const inbox = notes
-    .filter((n) => n.recipientId === session?.userId)
+    .filter((n) => n.recipientId === session?.userId && tripId && n.tripId === tripId)
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
     .slice(0, 3);
 
