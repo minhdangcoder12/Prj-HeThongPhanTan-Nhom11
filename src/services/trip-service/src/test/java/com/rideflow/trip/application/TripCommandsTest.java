@@ -410,6 +410,7 @@ class TripCommandsTest {
         assertThat(event.eventType()).isEqualTo("trip.driver-rejected");
         assertThat(event.payload().status()).isEqualTo(TripStatus.MATCHING);
         assertThat(event.payload().driverId()).isEqualTo(trip.driverId()); // matching nhả đúng tài xế này
+        assertThat(event.payload().actor()).isEqualTo("SYSTEM"); // không phải tài xế bấm Từ chối
         verify(trips).recordTransition(trip.id(), TripStatus.DRIVER_ASSIGNED, TripStatus.MATCHING, "SYSTEM", event.correlationId());
     }
 

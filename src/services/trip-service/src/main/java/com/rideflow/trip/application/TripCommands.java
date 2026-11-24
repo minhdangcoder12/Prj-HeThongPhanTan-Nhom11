@@ -201,7 +201,7 @@ public class TripCommands {
     }
 
     private void publish(Trip trip, TripStatus from, String eventType, String actor, UUID driverId) {
-        var event = EventEnvelope.of(eventType, trip.id().toString(), PRODUCER, null, TripEventPayload.of(trip, driverId));
+        var event = EventEnvelope.of(eventType, trip.id().toString(), PRODUCER, null, TripEventPayload.of(trip, driverId, actor));
         outbox.append(event);
         trips.recordTransition(trip.id(), from, trip.status(), actor, event.correlationId());
     }
