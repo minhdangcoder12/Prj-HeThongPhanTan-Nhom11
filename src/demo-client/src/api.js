@@ -1,6 +1,12 @@
 // Single entry point for HTTP (rule R7): every call carries a fresh X-Correlation-Id
 // so the action can be traced on the System Monitor event stream.
-export async function api(method, path, body, token) {
+// Gateway bắt đăng nhập cho cả GET: lệnh không tự truyền token (poll của Monitor, chuyến) dùng token người đang đăng nhập.
+let sessionToken = null;
+export const setSessionToken = (token) => {
+  sessionToken = token;
+};
+
+export async function api(method, path, body, token = sessionToken) {
   const correlationId = crypto.randomUUID();
   const res = await fetch(path, {
     method,

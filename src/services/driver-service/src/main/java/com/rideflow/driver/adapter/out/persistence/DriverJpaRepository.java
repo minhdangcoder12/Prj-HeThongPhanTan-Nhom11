@@ -19,6 +19,15 @@ interface DriverJpaRepository extends JpaRepository<DriverJpaEntity, UUID> {
     @Query(value = "UPDATE drivers SET status = 'AVAILABLE', current_trip_id = NULL, reserved_until = NULL, updated_at = :now WHERE id = :driverId AND status = 'RESERVED' AND (:tripId IS NULL OR current_trip_id = :tripId)", nativeQuery = true)
     int atomicRelease(@Param("driverId") UUID driverId, @Param("tripId") UUID tripId, @Param("now") Instant now);
 
+    // Chỉ đổi khi tài xế còn đúng trạng thái và đúng chuyến: event đến muộn hay sai thứ tự không làm hỏng dữ liệu.
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "UPDATE drivers SET status = 'ON_TRIP', reserved_until = NULL, updated_at = :now WHERE id = :driverId AND status = 'RESERVED' AND current_trip_id = :tripId", nativeQuery = true)
+    int startTrip(@Param("driverId") UUID driverId, @Param("tripId") UUID tripId, @Param("now") Instant now);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "UPDATE drivers SET status = 'AVAILABLE', current_trip_id = NULL, updated_at = :now WHERE id = :driverId AND status = 'ON_TRIP' AND current_trip_id = :tripId", nativeQuery = true)
+    int finishTrip(@Param("driverId") UUID driverId, @Param("tripId") UUID tripId, @Param("now") Instant now);
+
     @Query("SELECT d FROM DriverJpaEntity d WHERE d.status = com.rideflow.driver.domain.model.DriverStatus.RESERVED AND d.reservedUntil < :now")
     List<DriverJpaEntity> findExpiredReservations(@Param("now") Instant now);
 }

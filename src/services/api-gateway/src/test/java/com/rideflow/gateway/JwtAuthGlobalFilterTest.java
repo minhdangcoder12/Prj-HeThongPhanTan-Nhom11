@@ -56,7 +56,7 @@ class JwtAuthGlobalFilterTest {
 
     @Test
     void spoofedHeadersAreStrippedOnPublicRequests() {
-        run(MockServerHttpRequest.get("/api/trips").header("X-User-Id", "spoofed").header("X-User-Role", "DRIVER"));
+        run(MockServerHttpRequest.get("/api/monitor/health").header("X-User-Id", "spoofed").header("X-User-Role", "DRIVER"));
 
         var h = forwarded.get().getRequest().getHeaders();
         assertThat(h.containsKey("X-User-Id")).isFalse();
@@ -69,6 +69,14 @@ class JwtAuthGlobalFilterTest {
         assertThat(forwarded.getAndSet(null)).isNotNull();
         run(MockServerHttpRequest.post("/api/monitor/replay/x"));
         assertThat(forwarded.get()).isNotNull();
+    }
+
+    @Test
+    void readWithoutTokenIs401() {
+        var exchange = run(MockServerHttpRequest.get("/api/notifications"));
+
+        assertThat(forwarded.get()).isNull();
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test

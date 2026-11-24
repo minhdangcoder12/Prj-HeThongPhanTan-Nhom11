@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.Set;
 
 public enum TripStatus {
-    REQUESTED, MATCHING, DRIVER_ASSIGNED, ACCEPTED, ARRIVED, IN_PROGRESS, COMPLETED, PAYMENT_PENDING, PAID, PAYMENT_FAILED, NO_DRIVER, CANCELLED;
+    REQUESTED, MATCHING, DRIVER_ASSIGNED, ACCEPTED, ARRIVED, IN_PROGRESS, COMPLETED, PAID, PAYMENT_FAILED, NO_DRIVER, CANCELLED;
 
     // Nơi duy nhất định nghĩa vòng đời; cặp không có ở đây thì trả 409.
     private static final Map<TripStatus, Set<TripStatus>> NEXT = Map.of(

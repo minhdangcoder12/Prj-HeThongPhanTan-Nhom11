@@ -19,5 +19,11 @@ public interface DriverRepository {
 
     boolean atomicRelease(UUID driverId, UUID tripId);
 
+    /** RESERVED cho đúng chuyến -> ON_TRIP; false nếu tài xế không còn ở trạng thái đó. */
+    boolean startTrip(UUID driverId, UUID tripId);
+
+    /** ON_TRIP cho đúng chuyến -> AVAILABLE; false nếu tài xế không còn ở trạng thái đó. */
+    boolean finishTrip(UUID driverId, UUID tripId);
+
     List<Driver> findExpiredReservations(Instant now);
 }

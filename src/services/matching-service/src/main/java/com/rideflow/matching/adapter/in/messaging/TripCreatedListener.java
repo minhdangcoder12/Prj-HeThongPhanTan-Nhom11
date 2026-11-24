@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 
 import java.util.UUID;
 
@@ -20,26 +20,30 @@ public class TripCreatedListener {
 
     private final InboxGuard inboxGuard;
     private final MatchingSagaCoordinator coordinator;
+    private final TransactionOperations tx;
 
-    public TripCreatedListener(InboxGuard inboxGuard, MatchingSagaCoordinator coordinator) {
+    public TripCreatedListener(InboxGuard inboxGuard, MatchingSagaCoordinator coordinator, TransactionOperations tx) {
         this.inboxGuard = inboxGuard;
         this.coordinator = coordinator;
+        this.tx = tx;
     }
 
     @RabbitListener(queues = MatchingMessagingConfiguration.QUEUE_TRIP_CREATED)
-    @Transactional
     public void onTripCreated(EventEnvelope<TripCreatedPayload> envelope) {
-        if (!inboxGuard.firstTime(envelope.eventId(), CONSUMER, envelope.eventType())) {
-            log.info("Duplicate event {} ignored by {}", envelope.eventId(), CONSUMER);
-            return;
-        }
 
         TripCreatedPayload payload = envelope.payload();
         double lat = (payload != null && payload.pickup() != null) ? payload.pickup().lat() : 0.0;
         double lng = (payload != null && payload.pickup() != null) ? payload.pickup().lng() : 0.0;
         UUID tripId = (payload != null && payload.tripId() != null) ? payload.tripId() : UUID.fromString(envelope.aggregateId());
 
-        coordinator.startOrResumeSaga(tripId, lat, lng, envelope.eventId());
+        // Chỉ inbox + saga STARTED chung một transaction; các bước sau tự commit từng bước (R5).
+        var saga = tx.execute(status -> inboxGuard.firstTime(envelope.eventId(), CONSUMER, envelope.eventType())
+                ? coordinator.start(tripId, envelope.eventId()) : null);
+        if (saga == null) {
+            log.info("Duplicate event {} ignored by {}", envelope.eventId(), CONSUMER);
+            return;
+        }
+        coordinator.run(saga, lat, lng, envelope.eventId());
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

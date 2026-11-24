@@ -6,15 +6,18 @@ import com.rideflow.trip.domain.model.TripStatus;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/** Payload của mọi event trip.*, theo TripEnvelope trong contracts/asyncapi/asyncapi.yaml. */
+/**
+ * Payload của mọi event trip.*, theo TripEnvelope trong contracts/asyncapi/asyncapi.yaml.
+ * actor = ai gây ra thay đổi (PASSENGER, DRIVER, SYSTEM): phân biệt tài xế bấm Từ chối với hết hạn nhận chuyến.
+ */
 public record TripEventPayload(UUID tripId, UUID passengerId, UUID driverId, TripStatus status,
-                               Point pickup, Point dropoff, BigDecimal fare, BigDecimal surgeMultiplier) {
+                               Point pickup, Point dropoff, BigDecimal fare, BigDecimal surgeMultiplier, String actor) {
 
     public record Point(double lat, double lng) {}
 
-    static TripEventPayload of(Trip trip, UUID driverId) {
+    static TripEventPayload of(Trip trip, UUID driverId, String actor) {
         return new TripEventPayload(trip.id(), trip.passengerId(), driverId, trip.status(),
                 new Point(trip.pickupLat(), trip.pickupLng()), new Point(trip.dropoffLat(), trip.dropoffLng()), trip.fare(),
-                trip.surgeMultiplier());
+                trip.surgeMultiplier(), actor);
     }
 }

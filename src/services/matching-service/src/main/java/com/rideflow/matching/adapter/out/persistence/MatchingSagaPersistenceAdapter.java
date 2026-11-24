@@ -3,6 +3,7 @@ package com.rideflow.matching.adapter.out.persistence;
 import com.rideflow.matching.application.port.out.MatchingSagaRepository;
 import com.rideflow.matching.domain.model.MatchingAttempt;
 import com.rideflow.matching.domain.model.MatchingSaga;
+import com.rideflow.matching.domain.model.SagaStatus;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
@@ -36,6 +37,11 @@ class MatchingSagaPersistenceAdapter implements MatchingSagaRepository {
     @Override
     public Optional<MatchingSaga> findByTripId(UUID tripId) {
         return sagaJpa.findByTripId(tripId).map(MatchingSagaJpaEntity::toDomain);
+    }
+
+    @Override
+    public List<MatchingSaga> findByStatus(SagaStatus status) {
+        return sagaJpa.findByStatus(status).stream().map(MatchingSagaJpaEntity::toDomain).toList();
     }
 
     @Override

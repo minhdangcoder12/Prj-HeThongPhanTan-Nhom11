@@ -29,11 +29,11 @@ export default function Passenger({ session, onSession, tripId, onTrip, tripStat
 
   useEffect(() => (session ? poll("/api/notifications", (d) => Array.isArray(d) && setNotes(d)) : setNotes([])), [session]);
 
-  // Tin nhắn server gửi cho chính hành khách này, mới nhất trước.
+  // Tin nhắn server gửi cho hành khách này về chuyến đang theo dõi, mới nhất trước.
   const inbox = notes
-    .filter((n) => n.recipientId === session?.userId)
+    .filter((n) => n.recipientId === session?.userId && tripId && n.tripId === tripId)
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
-    .slice(0, 3);
+    .slice(0, 1);
 
   async function requestTrip() {
     const r = await api("POST", "/api/trips", { pickup: point(pickup), dropoff: point(dropoff) }, session?.token);
@@ -82,12 +82,15 @@ export default function Passenger({ session, onSession, tripId, onTrip, tripStat
           )}
         </div>
       )}
-      {coord("Điểm đón", pickup, setPickup)}
-      {coord("Điểm đến", dropoff, setDropoff)}
       <button className="primary main" onClick={requestTrip} disabled={!session}>
         Đặt xe
       </button>
-      <input aria-label="Theo dõi chuyến theo tripId" className="id" placeholder="hoặc dán tripId để theo dõi" value={tripId} onChange={(e) => onTrip(e.target.value.trim())} />
+      <details className="opts">
+        <summary>Tuỳ chọn: toạ độ, theo dõi tripId</summary>
+        {coord("Điểm đón", pickup, setPickup)}
+        {coord("Điểm đến", dropoff, setDropoff)}
+        <input aria-label="Theo dõi chuyến theo tripId" className="id" placeholder="dán tripId để theo dõi" value={tripId} onChange={(e) => onTrip(e.target.value.trim())} />
+      </details>
       <Result r={result} />
     </section>
   );

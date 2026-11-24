@@ -49,6 +49,16 @@ class DriverPersistenceAdapter implements DriverRepository {
     }
 
     @Override
+    public boolean startTrip(UUID driverId, UUID tripId) {
+        return jpa.startTrip(driverId, tripId, Instant.now()) > 0;
+    }
+
+    @Override
+    public boolean finishTrip(UUID driverId, UUID tripId) {
+        return jpa.finishTrip(driverId, tripId, Instant.now()) > 0;
+    }
+
+    @Override
     public List<Driver> findExpiredReservations(Instant now) {
         return jpa.findExpiredReservations(now).stream()
                 .map(DriverJpaEntity::toDomain).toList();

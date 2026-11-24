@@ -13,6 +13,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.springframework.transaction.support.TransactionOperations;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -189,10 +190,11 @@ class CircuitBreakerTest {
                 .thenReturn(List.of(driver1, driver2));
 
         MatchingSagaCoordinator coordinator = new MatchingSagaCoordinator(
-                repository, driverLocator, driverClient, tripClient, outbox);
+                repository, driverLocator, driverClient, tripClient, outbox,
+                TransactionOperations.withoutTransaction());
 
         long start = System.currentTimeMillis();
-        MatchingSaga saga = coordinator.startOrResumeSaga(tripId, 10.762622, 106.660172, UUID.randomUUID());
+        MatchingSaga saga = coordinator.run(coordinator.start(tripId, UUID.randomUUID()), 10.762622, 106.660172, UUID.randomUUID());
         long duration = System.currentTimeMillis() - start;
 
         assertThat(duration).isLessThan(2000L);

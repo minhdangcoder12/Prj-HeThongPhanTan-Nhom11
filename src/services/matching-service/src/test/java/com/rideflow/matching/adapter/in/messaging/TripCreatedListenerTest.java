@@ -3,6 +3,8 @@ package com.rideflow.matching.adapter.in.messaging;
 import com.rideflow.common.event.EventEnvelope;
 import com.rideflow.common.outbox.InboxGuard;
 import com.rideflow.matching.application.MatchingSagaCoordinator;
+import org.springframework.transaction.support.TransactionOperations;
+import com.rideflow.matching.domain.model.MatchingSaga;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
@@ -19,7 +21,7 @@ class TripCreatedListenerTest {
 
     private final InboxGuard inboxGuard = mock(InboxGuard.class);
     private final MatchingSagaCoordinator coordinator = mock(MatchingSagaCoordinator.class);
-    private final TripCreatedListener listener = new TripCreatedListener(inboxGuard, coordinator);
+    private final TripCreatedListener listener = new TripCreatedListener(inboxGuard, coordinator, TransactionOperations.withoutTransaction());
 
     @Test
     void firstTimeEventProcessesSaga() {
@@ -35,10 +37,12 @@ class TripCreatedListenerTest {
         );
 
         when(inboxGuard.firstTime(eq(eventId), eq("matching.trip-created"), eq("trip.created"))).thenReturn(true);
+        MatchingSaga saga = MatchingSaga.start(tripId);
+        when(coordinator.start(tripId, eventId)).thenReturn(saga);
 
         listener.onTripCreated(envelope);
 
-        verify(coordinator).startOrResumeSaga(eq(tripId), eq(10.7769), eq(106.7009), eq(eventId));
+        verify(coordinator).run(eq(saga), eq(10.7769), eq(106.7009), eq(eventId));
     }
 
     @Test
@@ -57,6 +61,7 @@ class TripCreatedListenerTest {
 
         listener.onTripCreated(envelope);
 
-        verify(coordinator, never()).startOrResumeSaga(any(), anyDouble(), anyDouble(), any());
+        verify(coordinator, never()).start(any(), any());
+        verify(coordinator, never()).run(any(), anyDouble(), anyDouble(), any());
     }
 }

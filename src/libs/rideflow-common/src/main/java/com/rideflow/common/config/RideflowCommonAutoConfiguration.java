@@ -1,13 +1,17 @@
 package com.rideflow.common.config;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rideflow.common.event.RideflowMessaging;
 import com.rideflow.common.outbox.InboxGuard;
 import com.rideflow.common.outbox.OutboxRelay;
 import com.rideflow.common.outbox.OutboxWriter;
 import com.rideflow.common.web.CorrelationIdFilter;
+import org.slf4j.MDC;
 import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.rabbit.config.ContainerCustomizer;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -19,6 +23,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.io.IOException;
+
 /** Wires the technical building blocks into every service that depends on rideflow-common. */
 @AutoConfiguration(after = {JdbcTemplateAutoConfiguration.class, HibernateJpaAutoConfiguration.class,
         RabbitAutoConfiguration.class})
@@ -28,6 +34,27 @@ public class RideflowCommonAutoConfiguration {
     @Bean
     CorrelationIdFilter correlationIdFilter() {
         return new CorrelationIdFilter();
+    }
+
+    /**
+     * Listener nhận event thì đưa correlationId của event vào MDC trước khi xử lý, nên event mới nó phát
+     * (EventEnvelope.of đọc MDC) và log đều cùng một luồng với request ban đầu (R6).
+     */
+    @Bean
+    ContainerCustomizer<SimpleMessageListenerContainer> correlationIdFromEvents(ObjectMapper objectMapper) {
+        return container -> container.addAfterReceivePostProcessors(message -> {
+            try {
+                JsonNode id = objectMapper.readTree(message.getBody()).get(CorrelationIdFilter.MDC_KEY);
+                if (id != null && id.isTextual()) {
+                    MDC.put(CorrelationIdFilter.MDC_KEY, id.asText());
+                } else {
+                    MDC.remove(CorrelationIdFilter.MDC_KEY);
+                }
+            } catch (IOException notJson) {
+                MDC.remove(CorrelationIdFilter.MDC_KEY);
+            }
+            return message;
+        });
     }
 
     @Bean

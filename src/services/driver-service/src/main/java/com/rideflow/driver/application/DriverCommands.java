@@ -6,6 +6,8 @@ import com.rideflow.driver.application.port.out.DriverRepository;
 import com.rideflow.driver.application.port.out.IdempotencyRepository;
 import com.rideflow.driver.domain.model.Driver;
 import com.rideflow.driver.domain.model.DriverStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,8 @@ import java.util.UUID;
 @Service
 @Transactional
 public class DriverCommands {
+
+    private static final Logger log = LoggerFactory.getLogger(DriverCommands.class);
 
     private static final String PRODUCER = "driver-service";
     private static final String EVENT_AVAILABILITY_CHANGED = "driver.availability-changed";
@@ -132,6 +136,30 @@ public class DriverCommands {
         }
 
         return updated;
+    }
+
+    /**
+     * trip.accepted: tài xế đang giữ cho chuyến này -> ON_TRIP, nên bộ quét hết hạn giữ chỗ (chỉ quét RESERVED)
+     * không nhả tài xế giữa chuyến và không ghép tài xế cho chuyến thứ hai.
+     */
+    public void startTrip(UUID driverId, UUID tripId) {
+        followTrip(repository.startTrip(driverId, tripId), driverId, tripId, "trip.accepted");
+    }
+
+    /** trip.completed: tài xế rảnh lại, matching thêm lại vào bản đồ tài xế rảnh. */
+    public void finishTrip(UUID driverId, UUID tripId) {
+        followTrip(repository.finishTrip(driverId, tripId), driverId, tripId, "trip.completed");
+    }
+
+    // Không đúng trạng thái (event trùng, đến muộn, tài xế đã được nhả) thì WARN và bỏ qua, không ném lỗi (R3).
+    private void followTrip(boolean changed, UUID driverId, UUID tripId, String cause) {
+        if (!changed) {
+            log.warn("Ignoring {} for driver {} trip {}: driver is not in the expected state", cause, driverId, tripId);
+            return;
+        }
+        Driver updated = repository.findById(driverId)
+                .orElseThrow(() -> new NoSuchElementException("Driver " + driverId + " not found"));
+        publishEvent(EVENT_AVAILABILITY_CHANGED, updated);
     }
 
     public int sweepExpiredReservations() {

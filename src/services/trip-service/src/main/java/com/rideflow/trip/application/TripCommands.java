@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -107,6 +108,33 @@ public class TripCommands {
     }
 
     /**
+     * Tài xế không nhận chuyến trong hạn: xử lý như tài xế từ chối (cùng event trip.driver-rejected),
+     * matching nhả tài xế đó và chọn người tiếp theo. Hạn này phải ngắn hơn hạn giữ tài xế ở driver-service.
+     */
+    public int expireOverdueAssignments(Duration acceptTimeout) {
+        Instant before = Instant.now().minus(acceptTimeout);
+        int expired = 0;
+        for (UUID id : trips.findAssignedBefore(before)) {
+            if (expire(id, before)) {
+                expired++;
+            }
+        }
+        return expired;
+    }
+
+    /** Kiểm lại dưới khoá dòng: tài xế có thể vừa bấm Nhận chuyến sau lúc tìm danh sách. */
+    private boolean expire(UUID id, Instant before) {
+        Trip trip = load(id);
+        if (trip.status() != TripStatus.DRIVER_ASSIGNED || !trip.updatedAt().isBefore(before)) {
+            return false;
+        }
+        log.info("Driver {} did not accept trip {} in time, finding another driver", trip.driverId(), id);
+        Trip after = trips.save(trip.rejectByDriver(Instant.now()));
+        publish(after, trip.status(), "trip.driver-rejected", SYSTEM, trip.driverId());
+        return true;
+    }
+
+    /**
      * Bước của saga, gọi lại an toàn: cùng key trả kết quả cũ; lệnh song song chờ khoá dòng rồi thấy chuyến
      * đã gán cho tài xế này (không phát event lần 2). Tài xế khác -> 409.
      */
@@ -173,7 +201,7 @@ public class TripCommands {
     }
 
     private void publish(Trip trip, TripStatus from, String eventType, String actor, UUID driverId) {
-        var event = EventEnvelope.of(eventType, trip.id().toString(), PRODUCER, null, TripEventPayload.of(trip, driverId));
+        var event = EventEnvelope.of(eventType, trip.id().toString(), PRODUCER, null, TripEventPayload.of(trip, driverId, actor));
         outbox.append(event);
         trips.recordTransition(trip.id(), from, trip.status(), actor, event.correlationId());
     }

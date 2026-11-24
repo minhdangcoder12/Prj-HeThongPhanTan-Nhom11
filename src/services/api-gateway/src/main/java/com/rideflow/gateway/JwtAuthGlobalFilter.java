@@ -10,7 +10,6 @@ import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -22,7 +21,8 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * Kiểm JWT cho /api/** (R8). Luôn xoá X-User-* từ client rồi mới gắn lại từ claims, để không giả mạo được danh tính.
- * Public: /api/auth/**, /api/monitor/** và mọi GET (màn hình quan sát chỉ đọc).
+ * Public: chỉ /api/auth/** (đăng nhập) và /api/monitor/** (health, SSE event). Mọi request khác, kể cả GET,
+ * cần token: không ai xem được chuyến hay tin nhắn của người khác khi chưa đăng nhập (đề mục 4.5).
  */
 @Component
 class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
@@ -43,8 +43,7 @@ class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         String path = request.getURI().getPath();
         Claims claims = parse(request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
 
-        boolean isPublic = request.getMethod() == HttpMethod.GET
-                || path.startsWith("/api/auth/") || path.startsWith("/api/monitor/");
+        boolean isPublic = path.startsWith("/api/auth/") || path.startsWith("/api/monitor/");
         if (claims == null && !isPublic) {
             return unauthorized(exchange);
         }

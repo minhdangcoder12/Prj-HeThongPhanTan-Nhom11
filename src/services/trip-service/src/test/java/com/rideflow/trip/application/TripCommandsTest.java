@@ -14,7 +14,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -392,6 +394,43 @@ class TripCommandsTest {
         when(inbox.firstTime(event.eventId(), TripCommands.PAYMENT_CONSUMER, event.eventType())).thenReturn(false);
 
         commands.applyPayment(event);
+
+        verify(trips, never()).save(any());
+    }
+
+    @Test
+    void assignmentNotAcceptedInTimeGoesBackToMatchingLikeAReject() {
+        Trip trip = stored(TripStatus.DRIVER_ASSIGNED);
+        when(trips.findAssignedBefore(any())).thenReturn(List.of(trip.id()));
+
+        int expired = commands.expireOverdueAssignments(Duration.ofSeconds(-1)); // hạn đã qua ngay
+
+        assertThat(expired).isEqualTo(1);
+        EventEnvelope<TripEventPayload> event = appendedEvent();
+        assertThat(event.eventType()).isEqualTo("trip.driver-rejected");
+        assertThat(event.payload().status()).isEqualTo(TripStatus.MATCHING);
+        assertThat(event.payload().driverId()).isEqualTo(trip.driverId()); // matching nhả đúng tài xế này
+        assertThat(event.payload().actor()).isEqualTo("SYSTEM"); // không phải tài xế bấm Từ chối
+        verify(trips).recordTransition(trip.id(), TripStatus.DRIVER_ASSIGNED, TripStatus.MATCHING, "SYSTEM", event.correlationId());
+    }
+
+    @Test
+    void tripAcceptedJustBeforeExpiryIsLeftAlone() {
+        Trip trip = stored(TripStatus.ACCEPTED);
+        when(trips.findAssignedBefore(any())).thenReturn(List.of(trip.id()));
+
+        assertThat(commands.expireOverdueAssignments(Duration.ofSeconds(-1))).isZero();
+
+        verify(trips, never()).save(any());
+        verify(outbox, never()).append(any());
+    }
+
+    @Test
+    void assignmentStillWithinTimeoutIsLeftAlone() {
+        Trip trip = stored(TripStatus.DRIVER_ASSIGNED);
+        when(trips.findAssignedBefore(any())).thenReturn(List.of(trip.id()));
+
+        assertThat(commands.expireOverdueAssignments(Duration.ofMinutes(1))).isZero();
 
         verify(trips, never()).save(any());
     }

@@ -109,8 +109,8 @@ export default function Driver({ session, onSession }) {
             />
             {tripButton("accept", "Nhận chuyến", false)}
             {tripButton("reject", "Từ chối", false)}
-            {tripButton("arrive", "Đã đến điểm đón")}
-            {tripButton("start", "Bắt đầu")}
+            {tripButton("arrive", "Đã đến điểm đón", false)}
+            {tripButton("start", "Bắt đầu", false)}
             {tripButton("complete", "Hoàn thành")}
           </div>
 
@@ -130,7 +130,9 @@ export default function Driver({ session, onSession }) {
             </button>
           </div>
 
-          {/* GPS Location updater */}
+          {/* GPS nhập tay ít dùng (đã có vị trí mẫu bên dưới), gập lại cho gọn */}
+          <details className="opts">
+          <summary>Tuỳ chọn: GPS nhập tay</summary>
           <div className="row">
             <span>Vị trí:</span>
             <input
@@ -154,6 +156,7 @@ export default function Driver({ session, onSession }) {
               Cập nhật GPS
             </button>
           </div>
+          </details>
 
           {/* Presets */}
           <div className="row">

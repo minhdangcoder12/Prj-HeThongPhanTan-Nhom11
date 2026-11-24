@@ -13,12 +13,12 @@ defaultContentType: application/json
 channels:
   trip.created:                { address: trip.created,                x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
   trip.driver-assigned:        { address: trip.driver-assigned,        x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
-  trip.accepted:               { address: trip.accepted,               x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
+  trip.accepted:               { address: trip.accepted,               x-producer: trip-service,         x-phase: 1, description: "driver-service (queue driver.trip-events.q) moves the driver RESERVED -> ON_TRIP so the reservation sweeper no longer frees them", messages: { m: { $ref: "#/components/messages/TripEvent" } } }
   trip.driver-arrived:         { address: trip.driver-arrived,         x-producer: trip-service,         x-phase: 1, description: "notification-service (queue notification.trip-events.q) sends the passenger the message \"Tài xế đã đến điểm đón. Vui lòng ra xe.\"", messages: { m: { $ref: "#/components/messages/TripEvent" } } }
   trip.started:                { address: trip.started,                x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
-  trip.completed:              { address: trip.completed,              x-producer: trip-service,         x-phase: 1, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
-  trip.no-driver:              { address: trip.no-driver,              x-producer: matching-service,     x-phase: 1, description: "Saga found no driver; payload is only { tripId }. trip-service consumes it (queue trip.no-driver.q) and sets NO_DRIVER", messages: { m: { $ref: "#/components/messages/TripEvent" } } }
-  trip.driver-rejected:        { address: trip.driver-rejected,        x-producer: trip-service,         x-phase: 4, messages: { m: { $ref: "#/components/messages/TripEvent" } } }
+  trip.completed:              { address: trip.completed,              x-producer: trip-service,         x-phase: 1, description: "payment-service charges the trip; driver-service (queue driver.trip-events.q) moves the driver ON_TRIP -> AVAILABLE", messages: { m: { $ref: "#/components/messages/TripEvent" } } }
+  trip.no-driver:              { address: trip.no-driver,              x-producer: matching-service,     x-phase: 1, description: "Saga found no driver, or compensated after a failed assign; payload is only { tripId }. trip-service consumes it (queue trip.no-driver.q) and sets NO_DRIVER", messages: { m: { $ref: "#/components/messages/TripEvent" } } }
+  trip.driver-rejected:        { address: trip.driver-rejected,        x-producer: trip-service,         x-phase: 4, description: "Driver pressed reject, or did not accept within rideflow.trip.accept-timeout (60s, shorter than the 90s driver reservation; actor SYSTEM); matching releases payload.driverId and picks the next driver", messages: { m: { $ref: "#/components/messages/TripEvent" } } }
   driver.availability-changed: { address: driver.availability-changed, x-producer: driver-service,       x-phase: 1, messages: { m: { $ref: "#/components/messages/DriverEvent" } } }
   driver.location-updated:     { address: driver.location-updated,     x-producer: driver-service,       x-phase: 1, messages: { m: { $ref: "#/components/messages/DriverEvent" } } }
   driver.reserved:             { address: driver.reserved,             x-producer: driver-service,       x-phase: 1, messages: { m: { $ref: "#/components/messages/DriverEvent" } } }
@@ -65,6 +65,7 @@ components:
                 dropoff:     { $ref: "#/components/schemas/Point" }
                 fare:        { type: [number, "null"], description: "VND, already multiplied by surgeMultiplier" }
                 surgeMultiplier: { type: number, minimum: 1.0, maximum: 2.0, description: "waiting trips / available drivers within 3 km of pickup; trip-service reads supply from GET /internal/matching/supply?lat&lng&radiusKm (matching-service, field availableDrivers), 1.0 if that call fails" }
+                actor:       { type: string, enum: [PASSENGER, DRIVER, SYSTEM], description: "Who caused the change; SYSTEM on trip.driver-rejected means the accept timeout, not a driver tap" }
     DriverEnvelope:
       allOf:
         - $ref: "#/components/schemas/Envelope"

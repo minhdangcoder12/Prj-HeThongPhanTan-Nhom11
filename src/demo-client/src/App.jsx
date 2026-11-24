@@ -1,18 +1,23 @@
 import { useEffect, useState } from "react";
-import { poll } from "./api.js";
+import { poll, setSessionToken } from "./api.js";
 import Passenger from "./Passenger.jsx";
 import Driver from "./Driver.jsx";
 import Chaos from "./Chaos.jsx";
 import Monitor from "./Monitor.jsx";
-import Journey from "./Journey.jsx";
+import Flow from "./Flow.jsx";
 
 export default function App() {
   const [passenger, setPassenger] = useState(null);
   const [driver, setDriver] = useState(null);
   const [tripId, setTripId] = useState("");
-  const [tripStatus, setTripStatus] = useState(null); // status do Journey đã poll, chỉ để hiện trong thẻ Hành khách
+  const [tripStatus, setTripStatus] = useState(null); // status server trả về, chỉ để hiện trong thẻ Hành khách
   const [health, setHealth] = useState({});
   useEffect(() => poll("/api/monitor/health", setHealth, 3000), []);
+  setSessionToken(passenger?.token ?? driver?.token ?? null); // trước các poll của con trong cùng lần render
+  useEffect(() => {
+    setTripStatus(null);
+    return tripId ? poll(`/api/trips/${tripId}`, (t) => setTripStatus(t?.status ?? null)) : undefined;
+  }, [tripId]);
 
   const services = health.error ? [] : Object.entries(health);
   const down = health.error ? ["gateway"] : services.filter(([, s]) => s !== "UP").map(([name]) => name);
@@ -48,14 +53,14 @@ export default function App() {
 
       <main className="sheet">
         <div className="title-row">
-          <h1>Bảng điều khiển demo</h1>
+          <h1>Hệ thống vận hành thế nào</h1>
           <p className="lede">
             {down.length
               ? `${down.join(", ")} đang DOWN: các bước liên quan dừng cho tới khi service chạy lại.`
-              : `${services.length} service đang chạy · event RabbitMQ hiện trực tiếp bên dưới.`}
+              : `${services.length} service đang chạy. Cột trái chỉ để kích hoạt luồng; bên dưới là request và event đi qua các service.`}
           </p>
         </div>
-        <Journey tripId={tripId} onStatus={setTripStatus} />
+        <Flow tripId={tripId} />
         <Monitor />
       </main>
     </div>
