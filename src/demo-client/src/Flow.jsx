@@ -157,7 +157,7 @@ function Call({ kind, from, to, label, still }) {
 export default function Flow({ tripId }) {
   const [events, setEvents] = useState([]);
   const [shown, setShown] = useState(0);
-  const [playing, setPlaying] = useState(true);
+  const [playing, setPlaying] = useState(false); // mặc định đứng yên: người demo bấm tới đâu, luồng đi tới đó
   const [speed, setSpeed] = useState(2500);
   const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
@@ -174,7 +174,7 @@ export default function Flow({ tripId }) {
   const handled = useRef(-1); // vị trí thao tác người dùng gần nhất đã nhảy tới
   useEffect(() => {
     setShown(0);
-    setPlaying(true);
+    setPlaying(false);
     handled.current = -1;
   }, [tripId]);
 
@@ -183,8 +183,8 @@ export default function Flow({ tripId }) {
     return all.sort((a, b) => Date.parse(a.t) - Date.parse(b.t) || a.i - b.i);
   }, [events, tripId]);
 
-  // Đồng bộ với thao tác: có thao tác mới (đặt xe, tài xế bấm nút) thì hiện ngay bước đầu của nó,
-  // bỏ qua các bước cũ chưa phát (Phát lại để xem đủ). Không thì hàng đợi 2,5 s/bước làm đồ thị trễ cả phút.
+  // Đồng bộ với thao tác: có thao tác mới (đặt xe, tài xế bấm nút) thì nhảy tới bước đầu của nó và tự chạy
+  // hết các bước của thao tác đó; các bước cũ chưa xem thì bỏ qua (Phát lại để xem đủ).
   const lastStart = steps.findLastIndex((s) => s.start);
   useEffect(() => {
     if (lastStart > handled.current) {
@@ -194,13 +194,32 @@ export default function Flow({ tripId }) {
     }
   }, [lastStart]);
 
-  // Phụ thuộc atEnd chứ không phải steps.length: event mới đổ về không được đặt lại đồng hồ của bước đang hiện.
+  const step = (d) => setShown((v) => Math.min(Math.max(v + d, 1), steps.length));
+  // Phím → / ← (và PageDown/PageUp của bút trình chiếu) để đi từng bước khi thuyết trình.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+      if (e.key === "ArrowRight" || e.key === "PageDown") step(1);
+      if (e.key === "ArrowLeft" || e.key === "PageUp") step(-1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  // Tự chạy dừng ở cuối thao tác hiện tại: bước kế là đầu một thao tác khác. Trừ thao tác mới nhất, vì hiệu
+  // ứng nhảy ở trên sẽ tự chạy nó (không chặn ở đây, nếu không thao tác mới bị dừng ngay khi vừa tới).
+  // Phụ thuộc atEnd/groupDone chứ không phải steps: event mới đổ về không được đặt lại đồng hồ bước đang hiện.
   const atEnd = shown >= steps.length;
+  const groupDone = Boolean(steps[shown]?.start) && shown !== lastStart;
   useEffect(() => {
     if (!playing || atEnd) return undefined;
+    if (groupDone) {
+      setPlaying(false);
+      return undefined;
+    }
     const t = setTimeout(() => setShown((n) => n + 1), speed);
     return () => clearTimeout(t);
-  }, [playing, shown, atEnd, speed]);
+  }, [playing, shown, atEnd, groupDone, speed]);
 
   const n = Math.min(shown, steps.length);
   const cur = steps[n - 1];
@@ -213,9 +232,10 @@ export default function Flow({ tripId }) {
       <div className="block-head">
         <h2 id="seq-title">Luồng hệ thống{tripId && <> · chuyến <Id value={tripId} /></>}</h2>
         <span className="row">
-          <button onClick={() => setPlaying(!playing)} disabled={n >= steps.length}>{playing ? "Tạm dừng" : "Chạy tiếp"}</button>
-          <button onClick={() => { setPlaying(false); setShown(n + 1); }} disabled={n >= steps.length}>Bước tiếp</button>
-          <button onClick={() => { setShown(0); setPlaying(true); }}>Phát lại</button>
+          <button onClick={() => { setPlaying(false); step(-1); }} disabled={n <= 1}>← Lùi</button>
+          <button className="primary" onClick={() => { setPlaying(false); step(1); }} disabled={n >= steps.length}>Bước tiếp →</button>
+          <button onClick={() => setPlaying(!playing)} disabled={n >= steps.length}>{playing ? "Dừng" : "Tự chạy"}</button>
+          <button onClick={() => { setShown(Math.min(1, steps.length)); setPlaying(true); }}>Phát lại</button>
           <button className="ghost" onClick={() => setShown(steps.length)}>Hiện hết</button>
           <select aria-label="Tốc độ" value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
             <option value={4000}>Chậm</option>
@@ -229,7 +249,7 @@ export default function Flow({ tripId }) {
         {cur ? (
           <>
             <span className="meta">
-              Bước {n}/{steps.length}{n === steps.length && " (đã chạy hết, chờ event mới)"} · <span className={`kind ${cur.kind}`}>{KIND[cur.kind]}</span> · {NAME[cur.from]}
+              Bước {n}/{steps.length}{atEnd || groupDone ? " · xong thao tác này, chờ thao tác tiếp theo" : playing ? " · đang chạy" : " · tạm dừng (Bước tiếp hoặc phím →)"} · <span className={`kind ${cur.kind}`}>{KIND[cur.kind]}</span> · {NAME[cur.from]}
               {moving && <> → {NAME[cur.to[0]]}</>}{cur.store && <> ({cur.store})</>} · {clock(cur.t)}
             </span>
             <b key={n} className="say">{cur.say}</b>
@@ -238,7 +258,7 @@ export default function Flow({ tripId }) {
           <b className="say">
             {!tripId
               ? "Đăng nhập Hành khách ở cột trái rồi bấm Đặt xe: từng request và event sẽ chạy lần lượt qua các service ở đây."
-              : steps.length ? "Bấm Chạy tiếp hoặc Bước tiếp để xem từng bước." : "Đang chờ event đầu tiên của chuyến…"}
+              : steps.length ? "Bấm Bước tiếp (hoặc phím →) để xem từng bước." : "Đang chờ event đầu tiên của chuyến…"}
           </b>
         )}
       </div>
