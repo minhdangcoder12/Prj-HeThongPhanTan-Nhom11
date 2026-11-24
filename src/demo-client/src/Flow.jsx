@@ -16,7 +16,8 @@ const NOTI = ["notification", "notification.trip-events.q", "gửi tin cho khác
 const LISTEN = {
   "trip.created": [["matching", "matching.trip-created", "bắt đầu saga ghép tài xế"], NOTI],
   "trip.driver-rejected": [["matching", "matching.driver-rejected", "nhả tài xế, tìm người khác"], NOTI],
-  "trip.completed": [["payment", "payment.trip-completed.q", "thu tiền chuyến"], NOTI],
+  "trip.accepted": [["driver", "driver.trip-events.q", "chuyển tài xế sang ON_TRIP"], NOTI],
+  "trip.completed": [["payment", "payment.trip-completed.q", "thu tiền chuyến"], ["driver", "driver.trip-events.q", "trả tài xế về AVAILABLE"], NOTI],
   "trip.no-driver": [["trip", "trip.no-driver.q", "chuyển chuyến sang NO_DRIVER"], NOTI],
   "payment.succeeded": [["trip", "trip.payment-events.q", "chuyển chuyến sang PAID"], NOTI],
   "payment.failed": [["trip", "trip.payment-events.q", "chuyển chuyến sang PAYMENT_FAILED"], NOTI],
@@ -63,6 +64,8 @@ function stepsOf(e) {
     add("db", "trip", "trip", "INSERT trip + outbox", "trip lưu chuyến và ghi event trip.created vào bảng outbox trong CÙNG một transaction.");
     add("reply", "trip", "gateway", "201 Created", "trip trả 201: chuyến đang REQUESTED, chưa có tài xế.");
     add("reply", "gateway", "client", "201 Created", "Khách nhận kết quả ngay. Việc tìm tài xế chạy nền qua event.");
+  } else if (type === "trip.driver-rejected" && b.payload?.actor === "SYSTEM") {
+    add("db", "trip", "trip", "Hết hạn nhận → MATCHING + outbox", "Tài xế không bấm Nhận chuyến sau 60 s: AcceptTimeoutJob của trip tự coi như từ chối, chuyến quay lại tìm tài xế khác.");
   } else if (ACTION[type]) {
     const [action, who] = ACTION[type];
     add("rest", "client", "gateway", `POST …/${short(b.aggregateId)}/${action}`, `${who}: request kèm JWT của tài xế.`, "kiểm JWT");
