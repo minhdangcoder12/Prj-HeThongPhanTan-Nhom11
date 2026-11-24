@@ -5,6 +5,7 @@ cd "$(dirname "$0")/../.." || exit 1
 source tests/e2e/lib.sh
 set -a; source .env; set +a
 D01=00000000-0000-0000-0000-0000000000d1
+as_passenger # gateway bắt token cho mọi request, kể cả GET
 
 http GET /api/monitor/health
 check R1 "all 6 services UP" "6" "$(printf '%s' "$BODY" | grep -o '"UP"' | wc -l | tr -d ' ')"
@@ -25,7 +26,7 @@ rm -f "$BIG"
 check R9 "body over 64KB rejected at gateway (spec 4.5)" "413" "$CODE"
 
 CID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || date +%s%N)
-ECHO=$(curl -s -D - -o /dev/null -H "X-Correlation-Id: $CID" "$GW/api/drivers" | grep -i '^x-correlation-id' | tr -d '\r' | awk '{print $2}')
+ECHO=$(curl -s -D - -o /dev/null "${AUTH[@]}" -H "X-Correlation-Id: $CID" "$GW/api/drivers" | grep -i '^x-correlation-id' | tr -d '\r' | awk '{print $2}')
 check R5 "X-Correlation-Id propagated and echoed" "$CID" "$ECHO"
 
 SSE=$(mktemp)

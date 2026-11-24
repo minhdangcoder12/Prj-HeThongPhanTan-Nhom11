@@ -73,7 +73,9 @@ function StateTabs() {
           </button>
         ))}
       </div>
-      {Array.isArray(rows) ? (
+      {rows?.error === 401 ? (
+        <p className="empty">Đăng nhập Hành khách hoặc Tài xế để xem dữ liệu (gateway bắt token cho mọi request).</p>
+      ) : Array.isArray(rows) ? (
         rows.length ? <Table cols={current.cols} rows={rows} all={all} /> : <p className="empty">Chưa có dòng nào trong bảng {current.title.toLowerCase()}.</p>
       ) : rows ? (
         <pre className="result err">{JSON.stringify(rows, null, 2)}</pre>
@@ -103,7 +105,12 @@ function EventLog() {
     const source = new EventSource("/api/monitor/events");
     source.onopen = () => setConnected(true);
     source.onerror = () => setConnected(false);
-    source.onmessage = (m) => setEvents((prev) => [JSON.parse(m.data), ...prev].slice(0, 300));
+    // Mỗi lần nối lại, gateway gửi lại lịch sử: bỏ event đã có (bản vào DLQ giữ eventId gốc nên tính riêng).
+    const key = (e) => `${e.body?.eventId}:${e.deadLettered}`;
+    source.onmessage = (m) => {
+      const e = JSON.parse(m.data);
+      setEvents((prev) => (prev.some((p) => key(p) === key(e)) ? prev : [e, ...prev].slice(0, 300)));
+    };
     return () => source.close();
   }, []);
 

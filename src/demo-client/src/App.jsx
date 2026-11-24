@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { poll } from "./api.js";
+import { poll, setSessionToken } from "./api.js";
 import Passenger from "./Passenger.jsx";
 import Driver from "./Driver.jsx";
 import Chaos from "./Chaos.jsx";
@@ -13,6 +13,7 @@ export default function App() {
   const [tripStatus, setTripStatus] = useState(null); // status server trả về, chỉ để hiện trong thẻ Hành khách
   const [health, setHealth] = useState({});
   useEffect(() => poll("/api/monitor/health", setHealth, 3000), []);
+  setSessionToken(passenger?.token ?? driver?.token ?? null); // trước các poll của con trong cùng lần render
   useEffect(() => {
     setTripStatus(null);
     return tripId ? poll(`/api/trips/${tripId}`, (t) => setTripStatus(t?.status ?? null)) : undefined;
