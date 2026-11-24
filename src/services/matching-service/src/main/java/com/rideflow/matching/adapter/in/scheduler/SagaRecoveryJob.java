@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 
-/** Thử lại bù trừ cho saga kẹt ở COMPENSATING; quá hạn giữ tài xế (90 s) cộng dư thì kết thúc FAILED. */
+/** Gỡ saga kẹt: thử lại bù trừ, hoặc đi tiếp saga bị dừng giữa chừng khi matching sập (R5). Quá 120 s thì kết thúc. */
 @Component
 class SagaRecoveryJob {
 
@@ -21,7 +21,7 @@ class SagaRecoveryJob {
     }
 
     @Scheduled(fixedDelayString = "${rideflow.matching.recovery-interval-ms:5000}")
-    void retryCompensations() {
-        coordinator.retryCompensations(giveUpAfter);
+    void recoverStuckSagas() {
+        coordinator.recoverStuckSagas(giveUpAfter);
     }
 }
